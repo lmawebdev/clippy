@@ -28,7 +28,13 @@ export interface SettingsState {
   tipBubbleShowShortcuts: boolean;
   tipBubbleShowGreeting: boolean;
   tipBubbleShowProductivity: boolean;
+  tipBubbleShowWeather: boolean;
+  tipBubbleDuration: number; // seconds (5-38)
   tipBubbleTimeFormat: "12h" | "24h";
+  // Weather location settings
+  weatherLocationName: string;
+  weatherLatitude: number;
+  weatherLongitude: number;
   // Model settings
   modelAutoLoad: boolean;
 }
@@ -69,7 +75,13 @@ export const DEFAULT_SETTINGS: SettingsState = {
   tipBubbleShowShortcuts: true,
   tipBubbleShowGreeting: true,
   tipBubbleShowProductivity: true,
+  tipBubbleShowWeather: true,
+  tipBubbleDuration: 8, // default 8 seconds
   tipBubbleTimeFormat: "24h",
+  // Weather location defaults (Madrid, Spain)
+  weatherLocationName: "Madrid, España",
+  weatherLatitude: 40.4168,
+  weatherLongitude: -3.7038,
   // Model settings
   modelAutoLoad: true,
 };

@@ -9,14 +9,22 @@ import { getRandomTip, intervalToMs, Tip } from "../helpers/tipProviders";
 
 import "./css/SpeechBubble.css";
 
-const DISPLAY_DURATION = 8000; // How long to show each tip (8 seconds)
 const INITIAL_DELAY = 3000; // Show first tip 3 seconds after start
 
-export function SpeechBubble() {
+interface SpeechBubbleProps {
+  onVisibilityChange?: (isVisible: boolean) => void;
+}
+
+export function SpeechBubble({ onVisibilityChange }: SpeechBubbleProps) {
   const { settings } = useSharedState();
   const [currentTip, setCurrentTip] = useState<Tip | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+
+  // Notify parent when visibility changes
+  useEffect(() => {
+    onVisibilityChange?.(isVisible && !isExiting);
+  }, [isVisible, isExiting, onVisibilityChange]);
 
   const showTip = useCallback(async () => {
     if (!settings.tipBubbleEnabled || settings.tipBubbleInterval === "silent") {
@@ -30,6 +38,9 @@ export function SpeechBubble() {
         setIsExiting(false);
         setIsVisible(true);
 
+        // Get display duration from settings (convert seconds to ms)
+        const displayDuration = (settings.tipBubbleDuration || 8) * 1000;
+
         // Hide after display duration
         setTimeout(() => {
           setIsExiting(true);
@@ -37,7 +48,7 @@ export function SpeechBubble() {
             setIsVisible(false);
             setIsExiting(false);
           }, 300); // Wait for exit animation
-        }, DISPLAY_DURATION);
+        }, displayDuration);
       }
     } catch (error) {
       console.error("Error showing tip:", error);

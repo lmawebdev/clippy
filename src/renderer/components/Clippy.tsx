@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 import { ANIMATIONS, Animation } from "../clippy-animations";
 import {
@@ -11,6 +11,8 @@ import { useDebugState } from "../contexts/DebugContext";
 import { SpeechBubble } from "./SpeechBubble";
 
 const WAIT_TIME = 6000;
+const LOOK_UP_ANIMATION = "LookUp";
+const IDEA_ANIMATION = "GetAttention"; // "Tengo una idea" animation
 
 export function Clippy() {
   const {
@@ -25,6 +27,21 @@ export function Clippy() {
   const [animationTimeoutId, setAnimationTimeoutId] = useState<
     number | undefined
   >(undefined);
+  const [isBubbleVisible, setIsBubbleVisible] = useState(false);
+  const lookUpIntervalRef = useRef<number | null>(null);
+  const ideaTimeoutRef = useRef<number | null>(null);
+
+  // Helper to clear all bubble-related timers
+  const clearBubbleTimers = useCallback(() => {
+    if (lookUpIntervalRef.current) {
+      window.clearInterval(lookUpIntervalRef.current);
+      lookUpIntervalRef.current = null;
+    }
+    if (ideaTimeoutRef.current) {
+      window.clearTimeout(ideaTimeoutRef.current);
+      ideaTimeoutRef.current = null;
+    }
+  }, []);
 
   const playAnimation = useCallback((key: string) => {
     if (ANIMATIONS[key]) {
@@ -45,19 +62,62 @@ export function Clippy() {
     }
   }, []);
 
+  // Handle bubble visibility - first play "idea" animation, then LookUp in loop
+  const handleBubbleVisibilityChange = useCallback(
+    (visible: boolean) => {
+      setIsBubbleVisible(visible);
+
+      // Always clear existing timers first
+      clearBubbleTimers();
+
+      if (visible) {
+        // Clear any existing animation timeout
+        if (animationTimeoutId) {
+          window.clearTimeout(animationTimeoutId);
+          setAnimationTimeoutId(undefined);
+        }
+
+        // First play the "idea" animation
+        setAnimation(ANIMATIONS[IDEA_ANIMATION]);
+
+        // After idea animation completes, start LookUp loop
+        ideaTimeoutRef.current = window.setTimeout(() => {
+          setAnimation(ANIMATIONS[LOOK_UP_ANIMATION]);
+
+          lookUpIntervalRef.current = window.setInterval(() => {
+            setAnimation(ANIMATIONS[LOOK_UP_ANIMATION]);
+          }, ANIMATIONS[LOOK_UP_ANIMATION].length);
+        }, ANIMATIONS[IDEA_ANIMATION].length);
+      } else {
+        // Return to default animation
+        setAnimation(ANIMATIONS.Default);
+      }
+    },
+    [animationTimeoutId, clearBubbleTimers],
+  );
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearBubbleTimers();
+    };
+  }, [clearBubbleTimers]);
+
   // Play a random animation when clicked
   const handleClick = useCallback(() => {
+    if (isBubbleVisible) return; // Don't interrupt bubble animation
+
     const animationKeys = Object.keys(ANIMATIONS).filter(
       (key) => key !== "Default" && key !== "Show" && key !== "Hide",
     );
     const randomKey =
       animationKeys[Math.floor(Math.random() * animationKeys.length)];
     playAnimation(randomKey);
-  }, [playAnimation]);
+  }, [playAnimation, isBubbleVisible]);
 
   useEffect(() => {
     const playRandomIdleAnimation = () => {
-      if (status !== "idle") return;
+      if (status !== "idle" || isBubbleVisible) return;
 
       const randomIdleAnimation = getRandomIdleAnimation(animation);
       setAnimation(randomIdleAnimation);
@@ -78,7 +138,7 @@ export function Clippy() {
       setTimeout(() => {
         setStatus("idle");
       }, ANIMATIONS.Show.length + 200);
-    } else if (status === "idle") {
+    } else if (status === "idle" && !isBubbleVisible) {
       if (!animationTimeoutId) {
         playRandomIdleAnimation();
       }
@@ -90,16 +150,18 @@ export function Clippy() {
         window.clearTimeout(animationTimeoutId);
       }
     };
-  }, [status]);
+  }, [status, isBubbleVisible]);
 
   useEffect(() => {
-    log(`New animation key`, { animationKey });
-    playAnimation(animationKey);
-  }, [animationKey, playAnimation]);
+    if (!isBubbleVisible) {
+      log(`New animation key`, { animationKey });
+      playAnimation(animationKey);
+    }
+  }, [animationKey, playAnimation, isBubbleVisible]);
 
   return (
     <div>
-      <SpeechBubble />
+      <SpeechBubble onVisibilityChange={handleBubbleVisibilityChange} />
       <div
         className="app-drag"
         style={{

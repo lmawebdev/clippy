@@ -14,7 +14,8 @@ export type TipType =
   | "system"
   | "shortcut"
   | "greeting"
-  | "productivity";
+  | "productivity"
+  | "weather";
 
 export interface Tip {
   type: TipType;
@@ -162,6 +163,72 @@ function getProductivityTip(): Tip {
 }
 
 /**
+ * WMO Weather Code to emoji and description mapping
+ */
+const WMO_WEATHER_CODES: Record<number, { emoji: string; description: string }> = {
+  0: { emoji: "☀️", description: "Despejado" },
+  1: { emoji: "🌤️", description: "Mayormente despejado" },
+  2: { emoji: "⛅", description: "Parcialmente nublado" },
+  3: { emoji: "☁️", description: "Nublado" },
+  45: { emoji: "🌫️", description: "Niebla" },
+  48: { emoji: "🌫️", description: "Niebla helada" },
+  51: { emoji: "🌧️", description: "Llovizna ligera" },
+  53: { emoji: "🌧️", description: "Llovizna moderada" },
+  55: { emoji: "🌧️", description: "Llovizna densa" },
+  56: { emoji: "🌧️", description: "Llovizna helada" },
+  57: { emoji: "🌧️", description: "Llovizna helada densa" },
+  61: { emoji: "🌧️", description: "Lluvia ligera" },
+  63: { emoji: "🌧️", description: "Lluvia moderada" },
+  65: { emoji: "🌧️", description: "Lluvia intensa" },
+  66: { emoji: "🌧️", description: "Lluvia helada" },
+  67: { emoji: "🌧️", description: "Lluvia helada intensa" },
+  71: { emoji: "🌨️", description: "Nieve ligera" },
+  73: { emoji: "🌨️", description: "Nieve moderada" },
+  75: { emoji: "🌨️", description: "Nieve intensa" },
+  77: { emoji: "🌨️", description: "Copos de nieve" },
+  80: { emoji: "🌦️", description: "Chubascos ligeros" },
+  81: { emoji: "🌦️", description: "Chubascos moderados" },
+  82: { emoji: "🌦️", description: "Chubascos intensos" },
+  85: { emoji: "🌨️", description: "Chubascos de nieve" },
+  86: { emoji: "🌨️", description: "Chubascos de nieve intensos" },
+  95: { emoji: "⛈️", description: "Tormenta" },
+  96: { emoji: "⛈️", description: "Tormenta con granizo" },
+  99: { emoji: "⛈️", description: "Tormenta con granizo intenso" },
+};
+
+/**
+ * Get weather info from Open-Meteo API
+ */
+async function getWeatherTip(settings: SettingsState): Promise<Tip> {
+  try {
+    const { weatherLatitude, weatherLongitude, weatherLocationName } = settings;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${weatherLatitude}&longitude=${weatherLongitude}&current=temperature_2m,weather_code`;
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error("Weather API error");
+    }
+    
+    const data = await response.json();
+    const temp = Math.round(data.current.temperature_2m);
+    const weatherCode = data.current.weather_code;
+    const weather = WMO_WEATHER_CODES[weatherCode] || { emoji: "🌡️", description: "Desconocido" };
+    
+    return {
+      type: "weather",
+      content: `${weather.emoji} ${temp}°C - ${weather.description}\n📍 ${weatherLocationName}`,
+      icon: weather.emoji,
+    };
+  } catch (error) {
+    return {
+      type: "weather",
+      content: "🌡️ No se pudo obtener el clima",
+      icon: "🌡️",
+    };
+  }
+}
+
+/**
  * Get available tip types based on settings
  */
 function getEnabledTipTypes(settings: SettingsState): TipType[] {
@@ -172,6 +239,7 @@ function getEnabledTipTypes(settings: SettingsState): TipType[] {
   if (settings.tipBubbleShowShortcuts) types.push("shortcut");
   if (settings.tipBubbleShowGreeting) types.push("greeting");
   if (settings.tipBubbleShowProductivity) types.push("productivity");
+  if (settings.tipBubbleShowWeather) types.push("weather");
 
   return types;
 }
@@ -199,6 +267,8 @@ export async function getRandomTip(settings: SettingsState): Promise<Tip | null>
       return getGreetingTip();
     case "productivity":
       return getProductivityTip();
+    case "weather":
+      return getWeatherTip(settings);
     default:
       return getShortcutTip();
   }
