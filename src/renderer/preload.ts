@@ -91,6 +91,18 @@ const clippyApi: ClippyApi = {
   offNewChat: () => {
     ipcRenderer.removeAllListeners(IpcMessages.CHAT_NEW_CHAT);
   },
+  onLoadModel: (callback: () => void) => {
+    ipcRenderer.on(IpcMessages.LOAD_MODEL, callback);
+  },
+  offLoadModel: () => {
+    ipcRenderer.removeAllListeners(IpcMessages.LOAD_MODEL);
+  },
+  onUnloadModel: (callback: () => void) => {
+    ipcRenderer.on(IpcMessages.UNLOAD_MODEL, callback);
+  },
+  offUnloadModel: () => {
+    ipcRenderer.removeAllListeners(IpcMessages.UNLOAD_MODEL);
+  },
 
   // App
   getVersions: () => ipcRenderer.invoke(IpcMessages.APP_GET_VERSIONS),

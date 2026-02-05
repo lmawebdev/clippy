@@ -29,6 +29,8 @@ export interface SettingsState {
   tipBubbleShowGreeting: boolean;
   tipBubbleShowProductivity: boolean;
   tipBubbleTimeFormat: "12h" | "24h";
+  // Model settings
+  modelAutoLoad: boolean;
 }
 
 export interface SharedState {
@@ -68,6 +70,8 @@ export const DEFAULT_SETTINGS: SettingsState = {
   tipBubbleShowGreeting: true,
   tipBubbleShowProductivity: true,
   tipBubbleTimeFormat: "24h",
+  // Model settings
+  modelAutoLoad: true,
 };
 
 export const EMPTY_SHARED_STATE: SharedState = {

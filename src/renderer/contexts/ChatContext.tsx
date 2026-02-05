@@ -47,6 +47,8 @@ export type ChatContextType = {
   startNewChat: () => Promise<void>;
   deleteChat: (chatId: string) => Promise<void>;
   deleteAllChats: () => Promise<void>;
+  loadModel: () => Promise<void>;
+  unloadModel: () => Promise<void>;
 };
 
 export const ChatContext = createContext<ChatContextType | undefined>(
@@ -219,13 +221,25 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   // Load the model when the selected model changes
   // or when the system prompt, topK, or temperature change
+  // Unload model function
+  const unloadModel = useCallback(async () => {
+    try {
+      await electronAi.destroy();
+      setIsModelLoaded(false);
+    } catch (error) {
+      console.error("Error unloading model:", error);
+    }
+  }, []);
+
+  // Load the model when the selected model changes (if autoLoad is enabled)
   useEffect(() => {
     if (debug?.simulateDownload) {
       setIsModelLoaded(true);
       return;
     }
 
-    if (settings.selectedModel) {
+    // Only auto-load if modelAutoLoad is enabled
+    if (settings.modelAutoLoad && settings.selectedModel) {
       loadModel();
     } else if (!settings.selectedModel && isModelLoaded) {
       electronAi
@@ -238,6 +252,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         });
     }
   }, [
+    settings.modelAutoLoad,
     settings.selectedModel,
     settings.systemPrompt,
     settings.topK,
@@ -316,6 +331,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   }, [startNewChat]);
 
+  // Subscribe to load/unload model events from menu
+  useEffect(() => {
+    clippyApi.offLoadModel();
+    clippyApi.onLoadModel(() => {
+      loadModel();
+    });
+
+    clippyApi.offUnloadModel();
+    clippyApi.onUnloadModel(() => {
+      unloadModel();
+    });
+
+    return () => {
+      clippyApi.offLoadModel();
+      clippyApi.offUnloadModel();
+    };
+  }, [loadModel, unloadModel]);
+
   const value = {
     chatRecords,
     currentChatRecord,
@@ -333,6 +366,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     isModelLoaded,
     isChatWindowOpen,
     setIsChatWindowOpen,
+    loadModel,
+    unloadModel,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

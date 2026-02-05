@@ -129,6 +129,20 @@ function getFileMenu(): MenuItemConstructorOptions[] {
         getMainWindow()?.webContents.send(IpcMessages.CHAT_NEW_CHAT);
       },
     },
+    { type: "separator" },
+    {
+      label: "Load Model",
+      click: () => {
+        getMainWindow()?.webContents.send(IpcMessages.LOAD_MODEL);
+      },
+    },
+    {
+      label: "Unload Model",
+      click: () => {
+        getMainWindow()?.webContents.send(IpcMessages.UNLOAD_MODEL);
+      },
+    },
+    { type: "separator" },
     { role: "close" },
   ];
 
