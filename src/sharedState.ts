@@ -7,6 +7,8 @@ export type DefaultFont =
   | "System Default";
 export type DefaultFontSize = number;
 
+export type TipInterval = "1m" | "5m" | "10m" | "30m" | "1h" | "silent";
+
 export interface SettingsState {
   selectedModel?: string;
   systemPrompt?: string;
@@ -18,6 +20,15 @@ export interface SettingsState {
   defaultFont: DefaultFont;
   defaultFontSize: number;
   disableAutoUpdate?: boolean;
+  // Tip bubble settings
+  tipBubbleEnabled: boolean;
+  tipBubbleInterval: TipInterval;
+  tipBubbleShowTime: boolean;
+  tipBubbleShowSystem: boolean;
+  tipBubbleShowShortcuts: boolean;
+  tipBubbleShowGreeting: boolean;
+  tipBubbleShowProductivity: boolean;
+  tipBubbleTimeFormat: "12h" | "24h";
 }
 
 export interface SharedState {
@@ -48,6 +59,15 @@ export const DEFAULT_SETTINGS: SettingsState = {
   defaultFont: "Tahoma",
   defaultFontSize: 12,
   disableAutoUpdate: false,
+  // Tip bubble defaults
+  tipBubbleEnabled: true,
+  tipBubbleInterval: "5m",
+  tipBubbleShowTime: true,
+  tipBubbleShowSystem: true,
+  tipBubbleShowShortcuts: true,
+  tipBubbleShowGreeting: true,
+  tipBubbleShowProductivity: true,
+  tipBubbleTimeFormat: "24h",
 };
 
 export const EMPTY_SHARED_STATE: SharedState = {

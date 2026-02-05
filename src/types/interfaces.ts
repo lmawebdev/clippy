@@ -39,3 +39,13 @@ export interface ClippyDebugInfo {
   checks: Record<string, boolean | string>;
   gpu: unknown;
 }
+
+export interface SystemInfo {
+  cpuUsage: number;
+  memoryUsed: number;
+  memoryTotal: number;
+  diskUsed: number;
+  diskTotal: number;
+  platform: string;
+}
+

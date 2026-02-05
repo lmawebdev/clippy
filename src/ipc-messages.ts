@@ -43,4 +43,7 @@ export const IpcMessages = {
 
   // Clipboard
   CLIPBOARD_WRITE: "clippy_clipboard_write",
+
+  // System info
+  GET_SYSTEM_INFO: "clippy_get_system_info",
 };

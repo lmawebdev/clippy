@@ -99,6 +99,9 @@ const clippyApi: ClippyApi = {
   // Clipboard
   clipboardWrite: (data: Data) =>
     ipcRenderer.invoke(IpcMessages.CLIPBOARD_WRITE, data),
+
+  // System Info
+  getSystemInfo: () => ipcRenderer.invoke(IpcMessages.GET_SYSTEM_INFO),
 };
 
 contextBridge.exposeInMainWorld("clippy", clippyApi);

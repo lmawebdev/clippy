@@ -35,7 +35,7 @@ export async function createMainWindow() {
 
   mainWindow = new BrowserWindow({
     width: 125,
-    height: 100,
+    height: 200,
     transparent: true,
     hasShadow: false,
     frame: false,
@@ -242,6 +242,27 @@ export function toggleChatWindow() {
     chatWindow.show();
     chatWindow.focus();
   }
+}
+
+/**
+ * Show the chat window (without toggling - only opens if closed)
+ */
+export function showChatWindow() {
+  const chatWindow = getChatWindow();
+
+  if (!chatWindow) {
+    return;
+  }
+
+  if (!chatWindow.isVisible()) {
+    const mainWindow = getMainWindow();
+    const [width, height] = chatWindow.getSize();
+    const position = getPopoverWindowPosition(mainWindow, { width, height });
+
+    chatWindow.setPosition(position.x, position.y);
+    chatWindow.show();
+  }
+  chatWindow.focus();
 }
 
 /**

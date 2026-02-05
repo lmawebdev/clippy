@@ -11,7 +11,7 @@ import { FileTransport } from "electron-log";
 import { getStateManager } from "./state";
 
 import type { BubbleView } from "../renderer/contexts/BubbleViewContext";
-import { getMainWindow, toggleChatWindow } from "./windows";
+import { getMainWindow, toggleChatWindow, showChatWindow, getChatWindow } from "./windows";
 import { IpcMessages } from "../ipc-messages";
 import { checkForUpdates } from "./update";
 import {
@@ -180,6 +180,10 @@ function getSettingsMenuItem(): MenuItem {
         accelerator: "CmdOrCtrl+,",
       },
       {
+        label: "Tips",
+        click: () => openView("settings-tips"),
+      },
+      {
         label: "Model",
         click: () => openView("settings-model"),
       },
@@ -261,5 +265,18 @@ function getHelpMenu(): MenuItemConstructorOptions[] {
 }
 
 function openView(view: BubbleView) {
-  getMainWindow()?.webContents.send(IpcMessages.SET_BUBBLE_VIEW, view);
+  const mainWindow = getMainWindow();
+  if (mainWindow) {
+    // Send to main window (which forwards to chat via WindowPortal)
+    mainWindow.webContents.send(IpcMessages.SET_BUBBLE_VIEW, view);
+    
+    // Also send directly to chat window if it exists
+    const chatWindow = getChatWindow();
+    if (chatWindow) {
+      chatWindow.webContents.send(IpcMessages.SET_BUBBLE_VIEW, view);
+    }
+    
+    // Ensure chat window is open
+    showChatWindow();
+  }
 }

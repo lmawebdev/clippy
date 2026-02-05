@@ -14,6 +14,7 @@ import { checkForUpdates } from "./update";
 import { getVersions } from "./helpers/getVersions";
 import { getClippyDebugInfo } from "./debug-clippy";
 import { getDebugManager } from "./debug";
+import { getSystemInfo } from "./helpers/systemInfo";
 
 export function setupIpcListeners() {
   // Window
@@ -100,4 +101,7 @@ export function setupIpcListeners() {
   ipcMain.handle(IpcMessages.CLIPBOARD_WRITE, (_, data: Data) =>
     clipboard.write(data, "clipboard"),
   );
+
+  // System Info
+  ipcMain.handle(IpcMessages.GET_SYSTEM_INFO, () => getSystemInfo());
 }

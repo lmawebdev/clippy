@@ -1,0 +1,96 @@
+/**
+ * SpeechBubble CSS - Windows 98 style tooltip above Clippy
+ * Window is now 125x200px to accommodate bubble
+ */
+
+.speech-bubble-container {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  animation: bubble-enter 0.3s ease-out forwards;
+  pointer-events: none;
+}
+
+.speech-bubble-container.exiting {
+  animation: bubble-exit 0.3s ease-in forwards;
+}
+
+.speech-bubble {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  min-width: 110px;
+  max-width: 120px;
+  background: #ffffcc;
+  border: 2px solid #808080;
+  box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.3);
+  border-radius: 2px;
+}
+
+.speech-bubble-content {
+  padding: 8px 10px;
+  background-color: #ffffcc;
+}
+
+.speech-bubble-content p {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #000;
+  white-space: pre-line;
+  word-wrap: break-word;
+  font-family: "Tahoma", "Segoe UI", sans-serif;
+  text-align: center;
+}
+
+/* Speech bubble tail - pointing down toward Clippy */
+.speech-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid #ffffcc;
+}
+
+.speech-bubble::before {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 10px solid #808080;
+}
+
+/* Animations */
+@keyframes bubble-enter {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes bubble-exit {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px) scale(0.9);
+  }
+}

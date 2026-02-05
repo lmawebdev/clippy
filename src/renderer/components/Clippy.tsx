@@ -8,6 +8,7 @@ import {
 import { useChat } from "../contexts/ChatContext";
 import { log } from "../logging";
 import { useDebugState } from "../contexts/DebugContext";
+import { SpeechBubble } from "./SpeechBubble";
 
 const WAIT_TIME = 6000;
 
@@ -44,9 +45,15 @@ export function Clippy() {
     }
   }, []);
 
-  const toggleChat = useCallback(() => {
-    setIsChatWindowOpen(!isChatWindowOpen);
-  }, [isChatWindowOpen, setIsChatWindowOpen]);
+  // Play a random animation when clicked
+  const handleClick = useCallback(() => {
+    const animationKeys = Object.keys(ANIMATIONS).filter(
+      (key) => key !== "Default" && key !== "Show" && key !== "Hide",
+    );
+    const randomKey =
+      animationKeys[Math.floor(Math.random() * animationKeys.length)];
+    playAnimation(randomKey);
+  }, [playAnimation]);
 
   useEffect(() => {
     const playRandomIdleAnimation = () => {
@@ -92,6 +99,7 @@ export function Clippy() {
 
   return (
     <div>
+      <SpeechBubble />
       <div
         className="app-drag"
         style={{
@@ -101,8 +109,7 @@ export function Clippy() {
           backgroundColor: enableDragDebug ? "blue" : "transparent",
           opacity: 0.5,
           zIndex: 5,
-        }}
-      >
+        }}>
         <div
           className="app-no-drag"
           style={{
@@ -113,10 +120,9 @@ export function Clippy() {
             zIndex: 10,
             right: "40px",
             top: "2px",
-            cursor: "help",
+            cursor: "pointer",
           }}
-          onClick={toggleChat}
-        ></div>
+          onClick={handleClick}></div>
       </div>
       <img
         className="app-no-select"

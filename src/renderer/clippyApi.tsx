@@ -5,6 +5,7 @@ import {
   ChatWithMessages,
   ClippyDebugInfo,
   Versions,
+  SystemInfo,
 } from "../types/interfaces";
 import { DebugState } from "../debugState";
 
@@ -54,6 +55,8 @@ export type ClippyApi = {
   offNewChat: () => void;
   // Clipboard
   clipboardWrite: (data: Data) => Promise<void>;
+  // System Info
+  getSystemInfo: () => Promise<SystemInfo | null>;
 };
 
 declare global {
