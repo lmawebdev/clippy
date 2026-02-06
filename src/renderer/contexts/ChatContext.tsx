@@ -152,8 +152,26 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       console.log("Loading model with options:", options);
 
       try {
-        await electronAi.create(options);
-        setIsModelLoaded(true);
+        if (settings.useExternalApi) {
+          // If using external API, we don't load the local model.
+          // But we mark "isModelLoaded" as true so the chat UI thinks it's ready.
+          const provider = settings.externalApiProvider;
+          const key = settings.externalApiKey;
+
+          if (!key) {
+            throw new Error(
+              "External API Key is missing. Please check settings.",
+            );
+          }
+
+          console.log(`Using External API: ${provider}`);
+          setIsModelLoaded(true);
+          setStatus("idle");
+        } else {
+          await electronAi.create(options);
+          setIsModelLoaded(true);
+          setStatus("idle");
+        }
       } catch (error) {
         console.error(error);
 
@@ -170,6 +188,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       settings.systemPrompt,
       settings.topK,
       settings.temperature,
+      settings.useExternalApi,
+      settings.externalApiProvider,
+      settings.externalApiKey,
       messages,
     ],
   );
@@ -224,7 +245,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   // Unload model function
   const unloadModel = useCallback(async () => {
     try {
-      await electronAi.destroy();
+      // Always try to destroy local model just in case?
+      // Or checking if we were in external mode?
+      // Safest is to try destroy if not external, or just try destroy and catch error?
+      // electron-llm throws if no model loaded?
+
+      // If we are "loaded" but in external mode, we just flip the switch.
+      // But if we switched MODES, we might have a local model loaded.
+
+      // Attempt to destroy local model regardless, to be safe.
+      try {
+        await electronAi.destroy();
+      } catch (e) {
+        // ignore
+      }
       setIsModelLoaded(false);
     } catch (error) {
       console.error("Error unloading model:", error);
@@ -235,6 +269,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (debug?.simulateDownload) {
       setIsModelLoaded(true);
+      return;
+    }
+
+    // If external API is enabled, always try to "load" (validate) it.
+    // External APIs don't consume significant local resources, so we can always enable them if configured.
+    if (settings.useExternalApi) {
+      loadModel();
       return;
     }
 
@@ -257,6 +298,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     settings.systemPrompt,
     settings.topK,
     settings.temperature,
+    settings.useExternalApi,
+    settings.externalApiKey,
   ]);
 
   // If selectedModel is undefined or not available, set it to the first downloaded model

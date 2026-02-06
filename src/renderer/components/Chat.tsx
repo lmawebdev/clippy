@@ -5,6 +5,9 @@ import { ChatInput } from "./ChatInput";
 import { ANIMATION_KEYS_BRACKETS } from "../clippy-animation-helpers";
 import { useChat } from "../contexts/ChatContext";
 import { electronAi } from "../clippyApi";
+import { useContext } from "react";
+import { SharedStateContext } from "../contexts/SharedStateContext";
+import { ExternalLLMService, ExternalApiProvider } from "../api/external-llm";
 
 export type ChatProps = {
   style?: React.CSSProperties;
@@ -13,6 +16,7 @@ export type ChatProps = {
 export function Chat({ style }: ChatProps) {
   const { setAnimationKey, setStatus, status, messages, addMessage } =
     useChat();
+  const { settings } = useContext(SharedStateContext);
   const [streamingMessageContent, setStreamingMessageContent] =
     useState<string>("");
   const [lastRequestUUID, setLastRequestUUID] = useState<string>(
@@ -40,53 +44,122 @@ export function Chat({ style }: ChatProps) {
     setStatus("thinking");
 
     try {
-      const requestUUID = crypto.randomUUID();
-      setLastRequestUUID(requestUUID);
-
-      const response = await window.electronAi.promptStreaming(message, {
-        requestUUID,
-      });
-
-      let fullContent = "";
-      let filteredContent = "";
-      let hasSetAnimationKey = false;
-
-      for await (const chunk of response) {
-        if (fullContent === "") {
-          setStatus("responding");
+      if (settings.useExternalApi) {
+        // --- External API Mode ---
+        if (!settings.externalApiKey) {
+          throw new Error("Missing API Key");
         }
 
-        if (!hasSetAnimationKey) {
-          const { text, animationKey } = filterMessageContent(
-            fullContent + chunk,
-          );
+        // Prepare messages
+        const apiMessages = messages.map((m) => ({
+          role:
+            m.sender === "clippy" ? ("assistant" as const) : ("user" as const),
+          content: m.content,
+        }));
+        // Add the new user message
+        apiMessages.push({ role: "user", content: message });
 
-          filteredContent = text;
-          fullContent = fullContent + chunk;
+        let fullContent = "";
+        let filteredContent = "";
+        let hasSetAnimationKey = false;
 
-          if (animationKey) {
-            setAnimationKey(animationKey);
-            hasSetAnimationKey = true;
+        const systemPrompt = settings.systemPrompt.replace(
+          "[LIST OF ANIMATIONS]",
+          ANIMATION_KEYS_BRACKETS.join(", "),
+        );
+
+        // Stream from External Service
+        const stream = ExternalLLMService.streamResponse(
+          settings.externalApiProvider as ExternalApiProvider,
+          settings.externalApiKey,
+          settings.externalModelId || "gpt-4o",
+          apiMessages,
+          systemPrompt,
+        );
+
+        for await (const chunk of stream) {
+          if (fullContent === "") {
+            setStatus("responding");
           }
-        } else {
-          filteredContent += chunk;
+
+          if (!hasSetAnimationKey) {
+            const { text, animationKey } = filterMessageContent(
+              fullContent + chunk,
+            );
+
+            filteredContent = text;
+            fullContent = fullContent + chunk;
+
+            if (animationKey) {
+              setAnimationKey(animationKey);
+              hasSetAnimationKey = true;
+            }
+          } else {
+            filteredContent += chunk;
+            fullContent += chunk; // Track full content mainly for debug matches?
+          }
+
+          setStreamingMessageContent(filteredContent);
         }
 
-        setStreamingMessageContent(filteredContent);
+        // Finalize message
+        const assistantMessage: Message = {
+          id: crypto.randomUUID(),
+          content: filteredContent,
+          sender: "clippy",
+          createdAt: Date.now(),
+        };
+
+        addMessage(assistantMessage);
+      } else {
+        // --- Local Model Mode (Existing Logic) ---
+        const requestUUID = crypto.randomUUID();
+        setLastRequestUUID(requestUUID);
+
+        const response = await window.electronAi.promptStreaming(message, {
+          requestUUID,
+        });
+
+        let fullContent = "";
+        let filteredContent = "";
+        let hasSetAnimationKey = false;
+
+        for await (const chunk of response) {
+          if (fullContent === "") {
+            setStatus("responding");
+          }
+
+          if (!hasSetAnimationKey) {
+            const { text, animationKey } = filterMessageContent(
+              fullContent + chunk,
+            );
+
+            filteredContent = text;
+            fullContent = fullContent + chunk;
+
+            if (animationKey) {
+              setAnimationKey(animationKey);
+              hasSetAnimationKey = true;
+            }
+          } else {
+            filteredContent += chunk;
+          }
+
+          setStreamingMessageContent(filteredContent);
+        }
+
+        const assistantMessage: Message = {
+          id: crypto.randomUUID(),
+          content: filteredContent,
+          sender: "clippy",
+          createdAt: Date.now(),
+        };
+
+        addMessage(assistantMessage);
       }
-
-      // Once streaming is complete, add the full message to the messages array
-      // and clear the streaming message
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        content: filteredContent,
-        sender: "clippy",
-        createdAt: Date.now(),
-      };
-
-      addMessage(assistantMessage);
     } catch (error) {
       console.error(error);
+      // Optional: Add error message to chat?
     } finally {
       setStreamingMessageContent("");
       setStatus("idle");

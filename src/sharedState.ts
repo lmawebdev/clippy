@@ -38,6 +38,11 @@ export interface SettingsState {
   // Model settings
   modelAutoLoad: boolean;
   clippyPosition?: { x: number; y: number };
+  // External API settings
+  useExternalApi?: boolean;
+  externalApiProvider?: "openai" | "anthropic" | "gemini" | "perplexity" | "openrouter" | "grok";
+  externalApiKey?: string;
+  externalModelId?: string;
 }
 
 export interface SharedState {
@@ -85,6 +90,11 @@ export const DEFAULT_SETTINGS: SettingsState = {
   weatherLongitude: -3.7038,
   // Model settings
   modelAutoLoad: true,
+  // External API defaults
+  useExternalApi: false,
+  externalApiProvider: "openai",
+  externalApiKey: "",
+  externalModelId: "gpt-4o",
 };
 
 export const EMPTY_SHARED_STATE: SharedState = {
