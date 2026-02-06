@@ -242,9 +242,17 @@ export function Clippy() {
       activityRef.current = "external-command";
 
       playOneAnimation(ANIMATIONS[animationKey], () => {
-        // Resume loop after external command
+        // "cuando acaba la animación, que entre en idle por 2-3 segundos y vuelva a su estado inicial"
+        // Show idle frame
         setIdleFrame();
-        startIdleLoop();
+
+        // Wait 2-3 seconds
+        const waitTime = 2000 + Math.floor(Math.random() * 1000);
+
+        timeoutRef.current = window.setTimeout(() => {
+          // Resume loop (initial state)
+          startIdleLoop();
+        }, waitTime);
       });
     }
   }, [

@@ -64,10 +64,26 @@ export function Chat({ style }: ChatProps) {
         let filteredContent = "";
         let hasSetAnimationKey = false;
 
-        const systemPrompt = settings.systemPrompt.replace(
-          "[LIST OF ANIMATIONS]",
-          ANIMATION_KEYS_BRACKETS.join(", "),
-        );
+        let systemPrompt = settings.systemPrompt;
+
+        // Dynamic injection of animation list
+        if (systemPrompt.includes("[LIST OF ANIMATIONS]")) {
+          systemPrompt = systemPrompt.replace(
+            "[LIST OF ANIMATIONS]",
+            ANIMATION_KEYS_BRACKETS.join(", "),
+          );
+        } else {
+          // If the placeholder is missing (e.g. user edited it or stale settings),
+          // we append the instructions and list to ensure the AI knows what to do.
+          systemPrompt += `\n\nIMPORTANT: You have access to the following animations: ${ANIMATION_KEYS_BRACKETS.join(", ")}. At the end of your response, you MUST include exactly one tag from this list, e.g. "Hello! [Greeting]".`;
+        }
+
+        // Force "At the end" instruction if it seems missing or if we suspect old prompt
+        if (!systemPrompt.includes("At the end of your response")) {
+          systemPrompt += `\n\nREMINDER: Put the animation tag (e.g. [Greeting]) at the VERY END of your message.`;
+        }
+
+        console.log("Final System Prompt for External API:", systemPrompt);
 
         // Stream from External Service
         const stream = ExternalLLMService.streamResponse(
@@ -213,18 +229,16 @@ function filterMessageContent(content: string): {
   let text = content;
   let animationKey = "";
 
-  if (content === "[") {
-    text = "";
-  } else if (/^\[[A-Za-z]*$/m.test(content)) {
-    text = content.replace(/^\[[A-Za-z]*$/m, "").trim();
-  } else {
-    // Check for animation keys in brackets
-    for (const key of ANIMATION_KEYS_BRACKETS) {
-      if (content.startsWith(key)) {
-        animationKey = key.slice(1, -1);
-        text = content.slice(key.length).trim();
-        break;
-      }
+  // Regex to find [TagName] optionally followed by non-word chars (like dots, spaces, newlines) at the end
+  const match = content.match(/\[([a-zA-Z0-9\s_]+)\][\s\.]*$/);
+
+  if (match && match[1]) {
+    const possibleKey = match[1];
+    // Check if it's a valid animation key
+    if (ANIMATION_KEYS_BRACKETS.includes(`[${possibleKey}]`)) {
+      animationKey = possibleKey;
+      // Clean the text: remove the tag and any trailing whitespace/punctuation matched
+      text = content.slice(0, match.index).trim();
     }
   }
 
