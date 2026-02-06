@@ -8,6 +8,7 @@ import { electronAi } from "../clippyApi";
 import { useContext } from "react";
 import { SharedStateContext } from "../contexts/SharedStateContext";
 import { ExternalLLMService, ExternalApiProvider } from "../api/external-llm";
+import { VintageSpinner } from "./Spinner95";
 
 export type ChatProps = {
   style?: React.CSSProperties;
@@ -180,6 +181,19 @@ export function Chat({ style }: ChatProps) {
             createdAt: Date.now(),
           }}
         />
+      )}
+      {status === "thinking" && (
+        <div
+          style={{
+            padding: "10px",
+            display: "flex",
+            alignItems: "center",
+            color: "#666",
+            fontSize: "0.9em",
+          }}>
+          <VintageSpinner />
+          <span>Thinking...</span>
+        </div>
       )}
       <ChatInput onSend={handleSendMessage} onAbort={handleAbortMessage} />
     </div>
