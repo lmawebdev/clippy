@@ -132,6 +132,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setCurrentChatRecord(newChatRecord);
     setChatRecords((prevChatRecords) => ({
       ...prevChatRecords,
+      [currentChatRecord.id]: currentChatRecord, // Ensure the old one is updated in the list
       [newChatRecord.id]: newChatRecord,
     }));
     setMessages([]);

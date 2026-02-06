@@ -229,17 +229,26 @@ function filterMessageContent(content: string): {
   let text = content;
   let animationKey = "";
 
-  // Regex to find [TagName] optionally followed by non-word chars (like dots, spaces, newlines) at the end
-  const match = content.match(/\[([a-zA-Z0-9\s_]+)\][\s\.]*$/);
+  // Regex to find [TagName] anywhere in the string
+  const regex = /\[([a-zA-Z0-9\s_]+)\]/g;
 
-  if (match && match[1]) {
+  let match;
+  while ((match = regex.exec(content)) !== null) {
     const possibleKey = match[1];
-    // Check if it's a valid animation key
     if (ANIMATION_KEYS_BRACKETS.includes(`[${possibleKey}]`)) {
-      animationKey = possibleKey;
-      // Clean the text: remove the tag and any trailing whitespace/punctuation matched
-      text = content.slice(0, match.index).trim();
+      animationKey = possibleKey; // Take the latest one found
     }
+  }
+
+  if (animationKey) {
+    // Remove tag and potential trailing punctuation/whitespace
+    text = text.replace(
+      new RegExp(`\\s*\\[${animationKey}\\]\\s*[\\.\\!\\?]*$`, "g"),
+      "",
+    );
+    // Safety: remove it if it appears elsewhere too
+    text = text.replace(new RegExp(`\\[${animationKey}\\]`, "g"), "");
+    text = text.trim();
   }
 
   return { text, animationKey };

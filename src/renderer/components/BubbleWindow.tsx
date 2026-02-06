@@ -5,9 +5,11 @@ import { Chat } from "./Chat";
 import { Settings } from "./Settings";
 import { useBubbleView } from "../contexts/BubbleViewContext";
 import { Chats } from "./Chats";
+import { useChat } from "../contexts/ChatContext";
 
 export function Bubble() {
   const { currentView, setCurrentView } = useBubbleView();
+  const { startNewChat } = useChat();
   const [isMaximized, setIsMaximized] = useState(false);
 
   const containerStyle = {
@@ -68,8 +70,19 @@ export function Bubble() {
               paddingLeft: "8px",
               paddingRight: "8px",
             }}
-            onClick={handleChatsClick}
-          >
+            onClick={() => {
+              startNewChat();
+              setCurrentView("chat"); // Switch back to chat view if we were in settings
+            }}>
+            New Chat
+          </button>
+          <button
+            style={{
+              marginRight: "8px",
+              paddingLeft: "8px",
+              paddingRight: "8px",
+            }}
+            onClick={handleChatsClick}>
             Chats
           </button>
           <button
@@ -78,31 +91,26 @@ export function Bubble() {
               paddingLeft: "8px",
               paddingRight: "8px",
             }}
-            onClick={handleSettingsClick}
-          >
+            onClick={handleSettingsClick}>
             Settings
           </button>
           <button
             aria-label="Minimize"
-            onClick={() => clippyApi.minimizeChatWindow()}
-          ></button>
+            onClick={() => clippyApi.minimizeChatWindow()}></button>
           <button
             aria-label={isMaximized ? "Restore" : "Maximize"}
             onClick={() => {
               clippyApi.maximizeChatWindow();
               setIsMaximized(!isMaximized);
-            }}
-          ></button>
+            }}></button>
           <button
             aria-label="Close"
-            onClick={() => clippyApi.toggleChatWindow()}
-          ></button>
+            onClick={() => clippyApi.toggleChatWindow()}></button>
         </div>
       </div>
       <div
         className="window-content"
-        style={currentView === "chat" ? scrollAnchoredAtBottomStyle : {}}
-      >
+        style={currentView === "chat" ? scrollAnchoredAtBottomStyle : {}}>
         {content}
       </div>
     </div>

@@ -12,6 +12,7 @@ export const SettingsModel: React.FC = () => {
   const { models, settings } = useSharedState();
   const { isModelLoaded, loadModel, unloadModel } = useChat();
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   const columns: Array<Column> = [
     { key: "default", header: "Loaded", width: 50 },
@@ -159,7 +160,7 @@ export const SettingsModel: React.FC = () => {
                 id="apiProvider"
                 value={settings.externalApiProvider || "openai"}
                 onChange={handleProviderChange}
-                style={{ padding: 5 }}>
+                style={{ padding: "5px 8px", width: "100%", height: "30px" }}>
                 <option value="openai">OpenAI</option>
                 <option value="anthropic">Anthropic (Claude)</option>
                 <option value="gemini">Google Gemini</option>
@@ -171,16 +172,35 @@ export const SettingsModel: React.FC = () => {
 
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <label htmlFor="apiKey">API Key:</label>
-              <input
-                type="password"
-                id="apiKey"
-                value={settings.externalApiKey || ""}
-                onChange={(e) =>
-                  clippyApi.setState("settings.externalApiKey", e.target.value)
-                }
-                placeholder="sk-..."
-                style={{ padding: 5 }}
-              />
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <input
+                  type={showApiKey ? "text" : "password"}
+                  id="apiKey"
+                  value={settings.externalApiKey || ""}
+                  onChange={(e) =>
+                    clippyApi.setState(
+                      "settings.externalApiKey",
+                      e.target.value,
+                    )
+                  }
+                  placeholder="sk-..."
+                  style={{ padding: 5, flex: 1 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  style={{
+                    height: "30px",
+                    padding: "0 10px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: "60px",
+                  }}
+                  aria-label={showApiKey ? "Hide API Key" : "Show API Key"}>
+                  {showApiKey ? "Hide" : "Show"}
+                </button>
+              </div>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
