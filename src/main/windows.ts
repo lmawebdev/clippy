@@ -32,10 +32,13 @@ export async function createMainWindow() {
   }
 
   const settings = getStateManager().store.get("settings");
+  const { x, y } = settings.clippyPosition || {};
 
   mainWindow = new BrowserWindow({
     width: 125,
     height: 200,
+    x,
+    y,
     transparent: true,
     hasShadow: false,
     frame: false,
@@ -60,6 +63,18 @@ export async function createMainWindow() {
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
   }
+
+  mainWindow.on(
+    "move",
+    debounce(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const { x, y } = mainWindow.getBounds();
+        const settings = getStateManager().store.get("settings");
+        settings.clippyPosition = { x, y };
+        getStateManager().store.set("settings", settings);
+      }
+    }, 1000),
+  );
 
   mainWindow.on("system-context-menu", (event) => {
     event.preventDefault();
@@ -313,4 +328,15 @@ export function setFont(
       `document.querySelector('.clippy').setAttribute('data-font', '${font}');`,
     );
   });
+}
+
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number,
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
 }

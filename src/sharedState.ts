@@ -37,6 +37,7 @@ export interface SettingsState {
   weatherLongitude: number;
   // Model settings
   modelAutoLoad: boolean;
+  clippyPosition?: { x: number; y: number };
 }
 
 export interface SharedState {
