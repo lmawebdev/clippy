@@ -61,6 +61,9 @@ export type ClippyApi = {
   clipboardWrite: (data: Data) => Promise<void>;
   // System Info
   getSystemInfo: () => Promise<SystemInfo | null>;
+  // Global Input
+  onGlobalKeyDown: (callback: () => void) => void;
+  offGlobalKeyDown: () => void;
 };
 
 declare global {

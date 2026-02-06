@@ -114,6 +114,14 @@ const clippyApi: ClippyApi = {
 
   // System Info
   getSystemInfo: () => ipcRenderer.invoke(IpcMessages.GET_SYSTEM_INFO),
+
+  // Global Input
+  onGlobalKeyDown: (callback: () => void) => {
+    ipcRenderer.on(IpcMessages.GLOBAL_KEY_DOWN, callback);
+  },
+  offGlobalKeyDown: () => {
+    ipcRenderer.removeAllListeners(IpcMessages.GLOBAL_KEY_DOWN);
+  },
 };
 
 contextBridge.exposeInMainWorld("clippy", clippyApi);

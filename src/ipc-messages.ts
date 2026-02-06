@@ -48,4 +48,7 @@ export const IpcMessages = {
 
   // System info
   GET_SYSTEM_INFO: "clippy_get_system_info",
+
+  // Global Input
+  GLOBAL_KEY_DOWN: "clippy_global_key_down",
 };

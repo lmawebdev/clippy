@@ -256,6 +256,52 @@ export function Clippy() {
     startIdleLoop,
   ]);
 
+  // Handle Global Keyboard Events
+  useEffect(() => {
+    const handleGlobalKeyDown = () => {
+      // If bubble is visible, don't interrupt?
+      // User didn't specify, but usually bubble interaction is higher priority (user reading tips).
+      // If we interrupt with writing, it might be annoying.
+      if (isBubbleVisible) return;
+
+      // If we are already handling a click reaction, maybe wait?
+      // But typing usually implies active user intent.
+      // Let's override everything except bubble.
+
+      clearScheduler();
+      activityRef.current = "writing";
+
+      // Set animation to Writing immediately
+      // Note: Writing animation loop? We should check if it loops.
+      // Usually "Writing" is a looping animation or long enough.
+      // If it's short, it might freeze at end frame?
+      // We'll reset it or trust it loops.
+      // For now, set it.
+      if (ANIMATIONS["Writing"]) {
+        setAnimation(ANIMATIONS["Writing"]);
+      }
+
+      // Reset the "stop writing" timer
+      // "si en 2 segundos no detecta tecleo, que vuelva a su estado inicial"
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+      }
+
+      timeoutRef.current = window.setTimeout(() => {
+        // Stop writing
+        setIdleFrame(); // "estado inicial" usually means default/idle
+        activityRef.current = "idle-loop";
+        startIdleLoop();
+      }, 2000);
+    };
+
+    window.clippy.onGlobalKeyDown(handleGlobalKeyDown);
+
+    return () => {
+      window.clippy.offGlobalKeyDown();
+    };
+  }, [isBubbleVisible, clearScheduler, setIdleFrame, startIdleLoop]);
+
   return (
     <div>
       <SpeechBubble onVisibilityChange={handleBubbleVisibilityChange} />

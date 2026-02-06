@@ -12,6 +12,7 @@ import { createMainWindow, setupWindowListener } from "./windows";
 import { getModelManager } from "./models";
 import { setupAutoUpdater } from "./update";
 import { setupAppMenu } from "./menu";
+import { setupKeyboardListener } from "./keyboard";
 
 async function onReady() {
   console.info(`Welcome to Clippy v${app.getVersion()}`);
@@ -20,6 +21,7 @@ async function onReady() {
   await loadLlm();
   setupAppMenu();
   setupIpcListeners();
+  setupKeyboardListener();
   setupWindowListener();
   await createMainWindow();
 }

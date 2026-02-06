@@ -48,6 +48,7 @@ const EXTERNAL_DEPENDENCIES = [
   "node-llama-cpp",
   "@node-llama-cpp/",
   "electron-log",
+  "uiohook-napi",
   ...getNodeLlamaBinaryDependenciesToKeep(),
 ];
 
