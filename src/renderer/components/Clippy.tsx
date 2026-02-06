@@ -4,236 +4,257 @@ import { ANIMATIONS, Animation } from "../clippy-animations";
 import {
   EMPTY_ANIMATION,
   getRandomIdleAnimation,
+  ANIMATION_KEYS,
 } from "../clippy-animation-helpers";
 import { useChat } from "../contexts/ChatContext";
 import { log } from "../logging";
 import { useDebugState } from "../contexts/DebugContext";
 import { SpeechBubble } from "./SpeechBubble";
 
-const WAIT_TIME = 6000;
 const LOOK_UP_ANIMATION = "LookUp";
-const IDEA_ANIMATION = "GetAttention"; // "Tengo una idea" animation
+const IDEA_ANIMATION = "GetAttention";
+
+// Helper to filter out system animations
+const VALID_RANDOM_KEYS = ANIMATION_KEYS.filter(
+  (key) => key !== "Default" && key !== "Show" && key !== "Hide",
+);
 
 export function Clippy() {
-  const {
-    animationKey,
-    status,
-    setStatus,
-    setIsChatWindowOpen,
-    isChatWindowOpen,
-  } = useChat();
+  const { animationKey, status } = useChat();
   const { enableDragDebug } = useDebugState();
   const [animation, setAnimation] = useState<Animation>(EMPTY_ANIMATION);
-  // We use both a ref (for stable access in callbacks) and state (for rendering/effects)
+  const [isBubbleVisible, setIsBubbleVisible] = useState(false);
+
+  // Refs for scheduler management
   const timeoutRef = useRef<number | undefined>(undefined);
   const lastIdleAnimationRef = useRef<Animation | undefined>(undefined);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [isBubbleVisible, setIsBubbleVisible] = useState(false);
-  const lookUpIntervalRef = useRef<number | null>(null);
-  const ideaTimeoutRef = useRef<number | null>(null);
 
-  // Helper to clear all bubble-related timers
-  const clearBubbleTimers = useCallback(() => {
-    if (lookUpIntervalRef.current) {
-      window.clearInterval(lookUpIntervalRef.current);
-      lookUpIntervalRef.current = null;
-    }
-    if (ideaTimeoutRef.current) {
-      window.clearTimeout(ideaTimeoutRef.current);
-      ideaTimeoutRef.current = null;
+  // Track if we are currently handling a special activity to prevent overlaps
+  // "idle-loop" | "click-reaction" | "bubble-interaction" | "external-command"
+  const activityRef = useRef<string>("idle-loop");
+
+  // Clear any pending timeout
+  const clearScheduler = useCallback(() => {
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+      timeoutRef.current = undefined;
     }
   }, []);
 
-  const playAnimation = useCallback((key: string) => {
-    if (ANIMATIONS[key]) {
-      log(`Playing animation`, { key });
+  // --- Animation Primitives ---
 
-      // Clear existing timeout using ref to avoid stale closures
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-      }
+  const playOneAnimation = useCallback(
+    (anim: Animation, onComplete?: () => void) => {
+      setAnimation(anim);
+      clearScheduler();
 
-      setAnimation(ANIMATIONS[key]);
-      setIsAnimating(true);
+      // Safety: if length is 0 (Default), we might want minimum time, but usually animations have length.
+      // We add a small buffer? The original code added 200ms.
+      const duration = anim.length > 0 ? anim.length : 100;
 
-      const id = window.setTimeout(() => {
-        setAnimation(ANIMATIONS.Default);
-        setIsAnimating(false);
-        timeoutRef.current = undefined;
-      }, ANIMATIONS[key].length + 200);
-
-      timeoutRef.current = id;
-    } else {
-      log(`Animation not found`, { key });
-    }
-  }, []);
-
-  // Handle bubble visibility - first play "idea" animation, then LookUp in loop
-  const handleBubbleVisibilityChange = useCallback(
-    (visible: boolean) => {
-      if (visible === isBubbleVisible) return;
-
-      setIsBubbleVisible(visible);
-
-      // Always clear existing timers first
-      clearBubbleTimers();
-
-      if (visible) {
-        // Clear any existing animation timeout using ref
-        if (timeoutRef.current) {
-          window.clearTimeout(timeoutRef.current);
-          timeoutRef.current = undefined;
-          setIsAnimating(false);
-        }
-
-        // First play the "idea" animation
-        setAnimation(ANIMATIONS[IDEA_ANIMATION]);
-
-        // After idea animation completes, start LookUp loop
-        ideaTimeoutRef.current = window.setTimeout(() => {
-          setAnimation(ANIMATIONS[LOOK_UP_ANIMATION]);
-
-          lookUpIntervalRef.current = window.setInterval(() => {
-            setAnimation(ANIMATIONS[LOOK_UP_ANIMATION]);
-          }, ANIMATIONS[LOOK_UP_ANIMATION].length);
-        }, ANIMATIONS[IDEA_ANIMATION].length);
-      } else {
-        // Return to default animation
-        setAnimation(ANIMATIONS.Default);
-        setIsAnimating(false);
-        if (timeoutRef.current) {
-          window.clearTimeout(timeoutRef.current);
-          timeoutRef.current = undefined;
-        }
-      }
+      timeoutRef.current = window.setTimeout(() => {
+        onComplete?.();
+      }, duration);
     },
-    [clearBubbleTimers, isBubbleVisible],
+    [clearScheduler],
   );
 
-  // Ref to track the idle scheduling timer specifically
-  const idleScheduleTimeoutRef = useRef<number | undefined>(undefined);
+  const setIdleFrame = useCallback(() => {
+    setAnimation(ANIMATIONS.Default);
+  }, []);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      clearBubbleTimers();
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-      }
-      if (idleScheduleTimeoutRef.current) {
-        window.clearTimeout(idleScheduleTimeoutRef.current);
-      }
+  // --- Logic Loops ---
+
+  // 1. Burst Logic: Play animations until total time ~4-5s
+  const playIdleBurst = useCallback(
+    (targetDurationMs: number, onComplete: () => void) => {
+      let currentDuration = 0;
+
+      // Recursive function to play next animation in burst
+      const playNext = () => {
+        // If we have exceeded target duration, stop
+        if (currentDuration >= targetDurationMs) {
+          onComplete();
+          return;
+        }
+
+        const nextAnim = getRandomIdleAnimation(lastIdleAnimationRef.current);
+        lastIdleAnimationRef.current = nextAnim;
+        const duration = nextAnim.length > 0 ? nextAnim.length : 1000;
+
+        currentDuration += duration;
+
+        playOneAnimation(nextAnim, () => {
+          playNext();
+        });
+      };
+
+      playNext();
+    },
+    [playOneAnimation],
+  );
+
+  // 2. Idle Cycle: Rest -> Burst -> Rest...
+  const startIdleLoop = useCallback(() => {
+    activityRef.current = "idle-loop";
+
+    // We define one full cycle as: Burst -> Rest.
+    // But when we "start", we generally want to do something?
+    // User said: "al iniciar la app (start)... rafaga... luego descanso".
+    // So we start with Burst.
+
+    const runBurst = () => {
+      if (activityRef.current !== "idle-loop") return;
+      if (isBubbleVisible) return; // Guard
+
+      const burstDuration = 4000 + Math.floor(Math.random() * 1000); // 4-5s
+
+      playIdleBurst(burstDuration, () => {
+        if (activityRef.current !== "idle-loop") return;
+
+        // After burst, set default and wait 3-4s
+        setIdleFrame();
+        const restDuration = 3000 + Math.floor(Math.random() * 1000); // 3-4s
+
+        timeoutRef.current = window.setTimeout(() => {
+          runBurst();
+        }, restDuration);
+      });
     };
-  }, [clearBubbleTimers]);
 
-  // Play a random animation when clicked
+    runBurst();
+  }, [playIdleBurst, setIdleFrame, isBubbleVisible]);
+
+  // --- Interaction Handlers ---
+
+  // Handle "Click"
   const handleClick = useCallback(() => {
-    if (isBubbleVisible) return; // Don't interrupt bubble animation
+    if (isBubbleVisible) return; // Don't interrupt bubble
 
-    const animationKeys = Object.keys(ANIMATIONS).filter(
-      (key) => key !== "Default" && key !== "Show" && key !== "Hide",
-    );
+    // Interrupt current activity
+    clearScheduler();
+    activityRef.current = "click-reaction";
+
+    // "hace una animación random"
     const randomKey =
-      animationKeys[Math.floor(Math.random() * animationKeys.length)];
-    playAnimation(randomKey);
-  }, [playAnimation, isBubbleVisible]);
+      VALID_RANDOM_KEYS[Math.floor(Math.random() * VALID_RANDOM_KEYS.length)];
+    const anim = ANIMATIONS[randomKey];
 
+    playOneAnimation(anim, () => {
+      // "despues de 2-3 seg. que vuelva al estado incial"
+      setIdleFrame();
+      const waitTime = 2000 + Math.floor(Math.random() * 1000); // 2-3s
+
+      timeoutRef.current = window.setTimeout(() => {
+        // Resume loop
+        startIdleLoop();
+      }, waitTime);
+    });
+  }, [
+    isBubbleVisible,
+    clearScheduler,
+    playOneAnimation,
+    setIdleFrame,
+    startIdleLoop,
+  ]);
+
+  // Handle Bubble Visibility
+  const handleBubbleVisibilityChange = useCallback(
+    (visible: boolean) => {
+      setIsBubbleVisible(visible);
+
+      if (visible) {
+        // Interrupt everything
+        clearScheduler();
+        activityRef.current = "bubble-interaction";
+
+        // Standard behavior: Look at bubble
+        const playLookUpLoop = () => {
+          if (activityRef.current !== "bubble-interaction") return;
+          playOneAnimation(ANIMATIONS[LOOK_UP_ANIMATION], () => {
+            // Keep looking up as long as visible
+            playLookUpLoop();
+          });
+        };
+
+        playOneAnimation(ANIMATIONS[IDEA_ANIMATION], () => {
+          playLookUpLoop();
+        });
+      } else {
+        // Bubble disappeared, visible = false
+        // "cuando desaparece la burbuja, 2 seg, despues seguir con las ráfágas"
+
+        // Ensure we break the lookup loop if it was pending
+        clearScheduler();
+        activityRef.current = "bubble-interaction-cooldown";
+
+        setIdleFrame(); // Back to neutral
+
+        timeoutRef.current = window.setTimeout(() => {
+          // Resume normal loop
+          startIdleLoop();
+        }, 2000);
+      }
+    },
+    [clearScheduler, playOneAnimation, setIdleFrame, startIdleLoop],
+  );
+
+  // --- Effects ---
+
+  // Initial mount start
   useEffect(() => {
-    let isMounted = true;
-
-    // Helper to play a sequence of random idle animations
-    const playIdleSequence = (count: number) => {
-      if (!isMounted) return;
-
-      // Safety check: if for some reason we shouldn't be animating anymore
-      if (status !== "idle" || isBubbleVisible) return;
-
-      const randomIdleAnimation = getRandomIdleAnimation(
-        lastIdleAnimationRef.current,
-      );
-
-      setAnimation(randomIdleAnimation);
-      lastIdleAnimationRef.current = randomIdleAnimation;
-      // Ensure we are marked as animating
-      setIsAnimating(true);
-
-      const id = window.setTimeout(() => {
-        if (!isMounted) return;
-
-        if (count > 1) {
-          // Play next in burst
-          setAnimation(ANIMATIONS.Default);
-          const gapId = window.setTimeout(() => {
-            playIdleSequence(count - 1);
-          }, 100);
-          timeoutRef.current = gapId;
-        } else {
-          // Sequence complete
-          setAnimation(ANIMATIONS.Default);
-          setIsAnimating(false); // This triggers the effect to schedule the next one
-          timeoutRef.current = undefined;
-        }
-      }, randomIdleAnimation.length);
-
-      timeoutRef.current = id;
-    };
-
-    // If status is welcome, immediately go to idle to avoid repeating loop issues
-    if (status === "welcome") {
-      setStatus("idle");
-      return;
+    // Only start if we are in a state that should animate (e.g. idle or welcome)
+    // And not if bubble is already visible for some reason
+    if ((status === "idle" || status === "welcome") && !isBubbleVisible) {
+      startIdleLoop();
     }
 
-    // Schedule next idle if we are idle, not bubble visible, and NOT currently animating
-    if (status === "idle" && !isBubbleVisible && !isAnimating) {
-      // Clear any existing schedule to be safe
-      if (idleScheduleTimeoutRef.current) {
-        window.clearTimeout(idleScheduleTimeoutRef.current);
-      }
+    return () => clearScheduler();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount to kick off the loop.
+  // Note: if status changes later, we might need to react, but 'status' usage in 'runBurst' via closures?
+  // No, 'runBurst' is defined in 'startIdleLoop' which is created once?
+  // Wait, 'startIdleLoop' depends on 'isBubbleVisible'.
+  // If 'isBubbleVisible' changes, 'startIdleLoop' changes.
+  // BUT the 'runBurst' inside the closure of the *running* timeout might be stale?
+  // 'runBurst' calls 'playIdleBurst' calls 'playOneAnimation' ...
+  // The recursion 'runBurst' -> 'playIdleBurst' -> 'playNext' -> 'playOneAnimation' -> 'playNext'.
+  // We need to be careful about stale closures.
 
-      const delay = 4000 + Math.floor(Math.random() * 1000); // 4-5 seconds
-      const id = window.setTimeout(() => {
-        if (isMounted) {
-          // Start the burst
-          const burstCount = Math.floor(Math.random() * 2) + 2; // 2 or 3 animations
-          playIdleSequence(burstCount);
-        }
-      }, delay);
+  // Actually, 'activityRef' protects us.
+  // If bubble becomes visible, 'handleBubbleVisibilityChange' sets 'activityRef' to 'bubble-interaction'.
+  // The running loop checks 'activityRef.current !== "idle-loop"' and aborts.
+  // So stale closures are fine as long as they check the Ref!
+  // And they do check 'activityRef.current'. Excellent.
 
-      idleScheduleTimeoutRef.current = id;
-    }
-
-    return () => {
-      isMounted = false;
-      // Cleanup schedule on deps change (e.g. isAnimating becomes true -> cancel schedule)
-      if (idleScheduleTimeoutRef.current) {
-        window.clearTimeout(idleScheduleTimeoutRef.current);
-        idleScheduleTimeoutRef.current = undefined;
-      }
-
-      // NOTE: We do NOT clear timeoutRef.current here automatically unless unmounting?
-      // Actually, if we leave status='idle', we might want to stop the animation?
-      // If we switch to 'bubble visible', we probably want to stop.
-      // But standard cleanup runs on every dependency change.
-      // If isAnimating changes true->false, we don't want to stop anything (it's already done).
-      // If isAnimating changes false->true (started animating), we just cleared the schedule above.
-
-      // If 'status' changes or 'isBubbleVisible' changes, we SHOULD stop any current animation.
-      if (status !== "idle" || isBubbleVisible) {
-        if (timeoutRef.current) {
-          window.clearTimeout(timeoutRef.current);
-          timeoutRef.current = undefined;
-        }
-      }
-    };
-  }, [status, isBubbleVisible, isAnimating, setStatus]);
-
+  // Watch for external status changes or animation overrides (e.g. from context/Omnibox)
   useEffect(() => {
-    if (!isBubbleVisible) {
-      log(`New animation key`, { animationKey });
-      playAnimation(animationKey);
+    // If we are handling a bubble, ignore external 'status' changes unless critical?
+    if (isBubbleVisible) return;
+
+    // If animationKey is set explicitly (e.g. "Congratulate"), play it.
+    if (
+      animationKey &&
+      animationKey !== "Default" &&
+      ANIMATIONS[animationKey]
+    ) {
+      clearScheduler();
+      activityRef.current = "external-command";
+
+      playOneAnimation(ANIMATIONS[animationKey], () => {
+        // Resume loop after external command
+        setIdleFrame();
+        startIdleLoop();
+      });
     }
-  }, [animationKey, playAnimation, isBubbleVisible]);
+  }, [
+    animationKey,
+    isBubbleVisible,
+    playOneAnimation,
+    clearScheduler,
+    setIdleFrame,
+    startIdleLoop,
+  ]);
 
   return (
     <div>
