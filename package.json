@@ -6,7 +6,7 @@
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
-    "package": "electron-forge package",
+    "package": "NODE_OPTIONS='--no-deprecation' electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "prettier --write --ext .ts,.tsx .",
@@ -62,6 +62,7 @@
     "update-electron-app": "^3.1.1"
   },
   "overrides": {
-    "@electron/windows-sign": "2.0.2"
+    "@electron/windows-sign": "2.0.2",
+    "node-llama-cpp": "^3.15.1"
   }
 }
