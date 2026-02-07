@@ -32,7 +32,8 @@ export class ExternalLLMService {
     apiKey: string,
     modelId: string,
     messages: ExternalLLMMessage[],
-    systemPrompt: string
+    systemPrompt: string,
+    signal?: AbortSignal
   ): AsyncGenerator<string, void, unknown> {
     if (!apiKey) {
       throw new Error("API Key is required");
@@ -45,12 +46,12 @@ export class ExternalLLMService {
     ];
 
     if (provider === "anthropic") {
-      yield* this.streamAnthropic(apiKey, modelId, messages, systemPrompt);
+      yield* this.streamAnthropic(apiKey, modelId, messages, systemPrompt, signal);
     } else if (provider === "gemini") {
-      yield* this.streamGemini(apiKey, modelId, messages, systemPrompt);
+      yield* this.streamGemini(apiKey, modelId, messages, systemPrompt, signal);
     } else {
       // OpenAI Compatible (OpenAI, Perplexity, OpenRouter, Grok)
-      yield* this.streamOpenAICompatible(this.getBaseUrl(provider), apiKey, modelId, finalMessages);
+      yield* this.streamOpenAICompatible(this.getBaseUrl(provider), apiKey, modelId, finalMessages, signal);
     }
   }
 
@@ -58,7 +59,8 @@ export class ExternalLLMService {
     url: string,
     apiKey: string,
     modelId: string,
-    messages: any[]
+    messages: any[],
+    signal?: AbortSignal
   ): AsyncGenerator<string, void, unknown> {
     const response = await fetch(url, {
       method: "POST",
@@ -71,6 +73,7 @@ export class ExternalLLMService {
         messages: messages,
         stream: true,
       }),
+      signal,
     });
 
     if (!response.ok) {
@@ -113,7 +116,8 @@ export class ExternalLLMService {
     apiKey: string,
     modelId: string,
     messages: ExternalLLMMessage[],
-    systemPrompt: string
+    systemPrompt: string,
+    signal?: AbortSignal
   ): AsyncGenerator<string, void, unknown> {
     const url = "https://api.anthropic.com/v1/messages";
     
@@ -135,6 +139,7 @@ export class ExternalLLMService {
         messages: anthropicMessages,
         stream: true,
       }),
+      signal,
     });
 
     if (!response.ok) {
@@ -177,7 +182,8 @@ export class ExternalLLMService {
     apiKey: string,
     modelId: string,
     messages: ExternalLLMMessage[],
-    systemPrompt: string
+    systemPrompt: string,
+    signal?: AbortSignal
   ): AsyncGenerator<string, void, unknown> {
     // Gemini has a specific URL pattern holding the model name key
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:streamGenerateContent?key=${apiKey}`;
@@ -201,6 +207,7 @@ export class ExternalLLMService {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal,
     });
 
     if (!response.ok) {

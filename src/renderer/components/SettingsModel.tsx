@@ -10,7 +10,8 @@ import { useChat } from "../contexts/ChatContext";
 
 export const SettingsModel: React.FC = () => {
   const { models, settings } = useSharedState();
-  const { isModelLoaded, loadModel, unloadModel } = useChat();
+  const { isModelLoaded, loadModel, unloadModel, isLoadingModel, modelError } =
+    useChat();
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [showApiKey, setShowApiKey] = useState(false);
 
@@ -79,10 +80,6 @@ export const SettingsModel: React.FC = () => {
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     clippyApi.setState("settings.useExternalApi", e.target.checked);
-    // If enabling external API, unload local model to save resources
-    if (e.target.checked && isModelLoaded) {
-      unloadModel();
-    }
   };
 
   const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -252,13 +249,35 @@ export const SettingsModel: React.FC = () => {
             <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
               <button
                 onClick={() => loadModel()}
-                disabled={isModelLoaded || !settings.selectedModel}>
+                disabled={
+                  isModelLoaded || !settings.selectedModel || isLoadingModel
+                }>
                 Load Model
               </button>
-              <button onClick={() => unloadModel()} disabled={!isModelLoaded}>
+              <button
+                onClick={() => unloadModel()}
+                disabled={!isModelLoaded || isLoadingModel}>
                 Unload Model
               </button>
             </div>
+            {isLoadingModel && (
+              <div style={{ marginBottom: 10 }}>
+                <p>Loading model...</p>
+                <Progress progress={100} />
+              </div>
+            )}
+            {modelError && (
+              <div
+                style={{
+                  color: "red",
+                  marginBottom: 10,
+                  padding: 5,
+                  border: "1px solid red",
+                  backgroundColor: "#fee",
+                }}>
+                <strong>Error:</strong> {modelError}
+              </div>
+            )}
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
               <input
                 type="checkbox"

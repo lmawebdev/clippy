@@ -5,6 +5,7 @@ import {
   ReactNode,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 import { Message } from "../components/Message";
 import { clippyApi, electronAi } from "../clippyApi";
@@ -39,6 +40,8 @@ export type ChatContextType = {
   status: ClippyNamedStatus;
   setStatus: (status: ClippyNamedStatus) => void;
   isModelLoaded: boolean;
+  isLoadingModel: boolean;
+  modelError: string | null;
   isChatWindowOpen: boolean;
   setIsChatWindowOpen: (isChatWindowOpen: boolean) => void;
   chatRecords: Record<string, ChatRecord>;
@@ -47,7 +50,7 @@ export type ChatContextType = {
   startNewChat: () => Promise<void>;
   deleteChat: (chatId: string) => Promise<void>;
   deleteAllChats: () => Promise<void>;
-  loadModel: () => Promise<void>;
+  loadModel: (initialPrompts?: LanguageModelPrompt[]) => Promise<void>;
   unloadModel: () => Promise<void>;
 };
 
@@ -138,24 +141,39 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setMessages([]);
   }, [currentChatRecord, messages]);
 
+  const [isLoadingModel, setIsLoadingModel] = useState(false);
+  const [modelError, setModelError] = useState<string | null>(null);
+
   const loadModel = useCallback(
     async (initialPrompts: LanguageModelPrompt[] = []) => {
+      if (isLoadingModel) return;
+
       setIsModelLoaded(false);
+      setIsLoadingModel(true);
+      setModelError(null);
+
+      // Ensure initialPrompts is an array (defensive programming)
+      const prompts = Array.isArray(initialPrompts) ? initialPrompts : [];
 
       const options: LanguageModelCreateOptions = {
         modelAlias: settings.selectedModel,
         systemPrompt: getSystemPrompt(),
         topK: settings.topK,
         temperature: settings.temperature,
-        initialPrompts,
+        initialPrompts: prompts,
       };
 
       console.log("Loading model with options:", options);
 
       try {
         if (settings.useExternalApi) {
-          // If using external API, we don't load the local model.
-          // But we mark "isModelLoaded" as true so the chat UI thinks it's ready.
+          // If using external API, we need to ensure any local model is stopped
+          try {
+            await electronAi.destroy();
+          } catch (e) {
+            // ignore
+          }
+
           const provider = settings.externalApiProvider;
           const key = settings.externalApiKey;
 
@@ -175,6 +193,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        setModelError(errorMessage);
 
         addMessage({
           id: crypto.randomUUID(),
@@ -182,9 +203,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           sender: "clippy",
           createdAt: Date.now(),
         });
+      } finally {
+        setIsLoadingModel(false);
       }
     },
     [
+      isLoadingModel,
       settings.selectedModel,
       settings.systemPrompt,
       settings.topK,
@@ -266,10 +290,30 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const prevUseExternalApi = useState(settings.useExternalApi); // Capture initial state
+  // We use a ref to track the previous value across renders
+  const prevUseExternalRef = useRef(settings.useExternalApi);
+
   // Load the model when the selected model changes (if autoLoad is enabled)
   useEffect(() => {
     if (debug?.simulateDownload) {
       setIsModelLoaded(true);
+      return;
+    }
+
+    // Detect explicit toggle of External API
+    if (prevUseExternalRef.current !== settings.useExternalApi) {
+      prevUseExternalRef.current = settings.useExternalApi;
+
+      if (settings.useExternalApi) {
+        loadModel();
+      } else if (settings.modelAutoLoad) {
+        loadModel();
+      } else {
+        // If switching back to local and autoload is off, unload everything
+        electronAi.destroy().catch(() => {});
+        setIsModelLoaded(false);
+      }
       return;
     }
 
@@ -408,6 +452,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     status,
     setStatus,
     isModelLoaded,
+    isLoadingModel,
+    modelError,
     isChatWindowOpen,
     setIsChatWindowOpen,
     loadModel,

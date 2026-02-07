@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useState, useRef, useContext } from "react";
 
 import { Message } from "./Message";
 import { ChatInput } from "./ChatInput";
 import { ANIMATION_KEYS_BRACKETS } from "../clippy-animation-helpers";
 import { useChat } from "../contexts/ChatContext";
 import { electronAi } from "../clippyApi";
-import { useContext } from "react";
 import { SharedStateContext } from "../contexts/SharedStateContext";
 import { ExternalLLMService, ExternalApiProvider } from "../api/external-llm";
 import { VintageSpinner } from "./Spinner95";
@@ -24,8 +23,16 @@ export function Chat({ style }: ChatProps) {
     crypto.randomUUID(),
   );
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const handleAbortMessage = () => {
     electronAi.abortRequest(lastRequestUUID);
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setStatus("idle");
+    setStreamingMessageContent("");
   };
 
   const handleSendMessage = async (message: string) => {
@@ -86,12 +93,16 @@ export function Chat({ style }: ChatProps) {
         console.log("Final System Prompt for External API:", systemPrompt);
 
         // Stream from External Service
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
         const stream = ExternalLLMService.streamResponse(
           settings.externalApiProvider as ExternalApiProvider,
           settings.externalApiKey,
           settings.externalModelId || "gpt-4o",
           apiMessages,
           systemPrompt,
+          controller.signal,
         );
 
         for await (const chunk of stream) {
@@ -180,6 +191,7 @@ export function Chat({ style }: ChatProps) {
     } finally {
       setStreamingMessageContent("");
       setStatus("idle");
+      abortControllerRef.current = null;
     }
   };
 

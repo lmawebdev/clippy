@@ -26,7 +26,7 @@ export function ChatInput({ onSend, onAbort }: ChatInputProps) {
   }, [onAbort]);
 
   const handleSendOrAbort = useCallback(() => {
-    if (status === "responding") {
+    if (status === "responding" || status === "thinking") {
       handleAbort();
     } else {
       handleSend();
@@ -83,9 +83,8 @@ export function ChatInput({ onSend, onAbort }: ChatInputProps) {
       <button
         disabled={!isModelLoaded}
         style={buttonStyle}
-        onClick={handleSendOrAbort}
-      >
-        {status === "responding" ? "Abort" : "Send"}
+        onClick={handleSendOrAbort}>
+        {status === "responding" || status === "thinking" ? "Abort" : "Send"}
       </button>
     </div>
   );

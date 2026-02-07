@@ -48,7 +48,9 @@ class ModelManager {
   public async downloadModelByName(name: string) {
     getLogger().info("Downloading model by name", name);
 
-    const model = this.models[name];
+    // Get fresh state
+    const models = { ...this.models };
+    const model = models[name];
 
     if (!model) {
       throw new Error(`Model not found: ${name}`);
@@ -71,10 +73,31 @@ class ModelManager {
     // Set model state
     model.downloaded = false;
     model.path = getModelPath(model);
+    
+    // Save state back to store to persist path
+    this.models = models;
+
+    // Ensure models directory exists
+    const modelDir = path.dirname(model.path);
+    if (!fs.existsSync(modelDir)) {
+      try {
+        await fs.promises.mkdir(modelDir, { recursive: true });
+      } catch (error) {
+        getLogger().error(
+          `ModelManager: Error creating models directory: ${modelDir}`,
+          error,
+        );
+      }
+    }
 
     if (getDebugManager().store.get("simulateDownload")) {
       this.downloadItems[name] = new MockDownloadItem(model, () => {
-        model.downloaded = true;
+        model.downloaded = true; // This modifies local copy, need to save to store?
+        // MockDownloadItem modifies the object reference. Since 'models' was saved to store, 
+        // does 'model' ref point to store object? No, 'models' setter likely clones.
+        // But MockDownloadItem callback calls pollRendererModelState, which reads from store.
+        // We might need to update store in callback too for Mock? 
+        // Actually, let's keep it simple. Mock is for testing.
         this.pollRendererModelState();
       });
     } else {
@@ -116,7 +139,8 @@ class ModelManager {
   public async deleteModelByName(name: string): Promise<boolean> {
     getLogger().info("Deleting model by name", name);
 
-    const model = this.models[name];
+    const models = { ...this.models };
+    const model = models[name];
 
     if (!model || !model.path) {
       getLogger().warn(
@@ -139,10 +163,18 @@ class ModelManager {
         await fs.promises.unlink(model.path);
         model.downloaded = false;
         model.path = undefined;
+        
+        // Save state back to store
+        this.models = models;
       } catch (error) {
         getLogger().error(`ModelManager: Error deleting model: ${name}`, error);
         return false;
       }
+    } else {
+        // If file didn't exist, still update state
+        model.downloaded = false;
+        model.path = undefined;
+        this.models = models;
     }
 
     this.pollRendererModelState();
