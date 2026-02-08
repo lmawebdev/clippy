@@ -122,6 +122,10 @@ const clippyApi: ClippyApi = {
   offGlobalKeyDown: () => {
     ipcRenderer.removeAllListeners(IpcMessages.GLOBAL_KEY_DOWN);
   },
+  // Mouse Events
+  setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => {
+    ipcRenderer.invoke(IpcMessages.SET_IGNORE_MOUSE_EVENTS, ignore, options);
+  },
 };
 
 contextBridge.exposeInMainWorld("clippy", clippyApi);

@@ -13,9 +13,15 @@ const INITIAL_DELAY = 3000; // Show first tip 3 seconds after start
 
 interface SpeechBubbleProps {
   onVisibilityChange?: (isVisible: boolean) => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
-export function SpeechBubble({ onVisibilityChange }: SpeechBubbleProps) {
+export function SpeechBubble({
+  onVisibilityChange,
+  onMouseEnter,
+  onMouseLeave,
+}: SpeechBubbleProps) {
   const { settings } = useSharedState();
   const [currentTip, setCurrentTip] = useState<Tip | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -79,6 +85,8 @@ export function SpeechBubble({ onVisibilityChange }: SpeechBubbleProps) {
 
   return (
     <div
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       className={`speech-bubble-container ${isExiting ? "exiting" : ""}`}
       role="alert"
       aria-live="polite">

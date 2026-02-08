@@ -64,6 +64,11 @@ export type ClippyApi = {
   // Global Input
   onGlobalKeyDown: (callback: () => void) => void;
   offGlobalKeyDown: () => void;
+  // Mouse Events
+  setIgnoreMouseEvents: (
+    ignore: boolean,
+    options?: { forward: boolean },
+  ) => void;
 };
 
 declare global {

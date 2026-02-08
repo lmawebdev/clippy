@@ -38,6 +38,7 @@ export interface SettingsState {
   // Model settings
   modelAutoLoad: boolean;
   clippyPosition?: { x: number; y: number };
+  allowMoveClippy?: boolean;
   // External API settings
   useExternalApi?: boolean;
   externalApiProvider?: "openai" | "anthropic" | "gemini" | "perplexity" | "openrouter" | "grok";
@@ -65,6 +66,7 @@ export const DEFAULT_SYSTEM_PROMPT = `You are Clippy, a helpful digital assistan
 
 export const DEFAULT_SETTINGS: SettingsState = {
   clippyAlwaysOnTop: true,
+  allowMoveClippy: true,
   chatAlwaysOnTop: true,
   alwaysOpenChat: true,
   systemPrompt: DEFAULT_SYSTEM_PROMPT,

@@ -80,6 +80,12 @@ export function getMainAppMenu(): Menu {
   windowMenu?.submenu?.append(new MenuItem({ type: "separator" }));
   windowMenu?.submenu?.append(
     new MenuItem({
+      label: "Minimize Clippy",
+      click: () => getMainWindow()?.minimize(),
+    }),
+  );
+  windowMenu?.submenu?.append(
+    new MenuItem({
       label: "Always Show Clippy on Top",
       type: "checkbox",
       checked: getStateManager().store.get("settings").clippyAlwaysOnTop,
@@ -101,6 +107,21 @@ export function getMainAppMenu(): Menu {
           "settings.chatAlwaysOnTop",
           menuItem.checked,
         );
+      },
+    }),
+  );
+  windowMenu?.submenu?.append(
+    new MenuItem({
+      label: "Allow Moving Clippy",
+      type: "checkbox",
+      checked: getStateManager().store.get("settings").allowMoveClippy,
+      click: (menuItem) => {
+        getStateManager().store.set(
+          "settings.allowMoveClippy",
+          menuItem.checked,
+        );
+        // Force refresh to update checkbox state if needed, though Electron handles it?
+        // Actually, state.ts calls setupAppMenu() on change. So it's handled.
       },
     }),
   );

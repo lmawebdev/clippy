@@ -52,6 +52,10 @@ export class StateManager {
       settings.temperature = 0.7;
     }
 
+    if (settings.allowMoveClippy === undefined) {
+      settings.allowMoveClippy = true;
+    }
+
     this.store.set("settings", settings);
   }
 

@@ -9,6 +9,7 @@ import {
 import { useChat } from "../contexts/ChatContext";
 import { log } from "../logging";
 import { useDebugState } from "../contexts/DebugContext";
+import { useSharedState } from "../contexts/SharedStateContext";
 import { SpeechBubble } from "./SpeechBubble";
 
 const LOOK_UP_ANIMATION = "LookUp";
@@ -21,6 +22,7 @@ const VALID_RANDOM_KEYS = ANIMATION_KEYS.filter(
 
 export function Clippy() {
   const { animationKey, status } = useChat();
+  const { settings } = useSharedState();
   const { enableDragDebug } = useDebugState();
   const [animation, setAnimation] = useState<Animation>(EMPTY_ANIMATION);
   const [isBubbleVisible, setIsBubbleVisible] = useState(false);
@@ -310,38 +312,76 @@ export function Clippy() {
     };
   }, [isBubbleVisible, clearScheduler, setIdleFrame, startIdleLoop]);
 
+  // --- Mouse Events for Click-Through ---
+  useEffect(() => {
+    // If dragging is enabled (allowMoveClippy=true), we want to CAPTURE events by default (ignore=false).
+    // If dragging is disabled (allowMoveClippy=false), we want to IGNORE events by default (click-through=true).
+    const ignore = !settings.allowMoveClippy;
+    window.clippy.setIgnoreMouseEvents(ignore, { forward: true });
+  }, [settings.allowMoveClippy]);
+
+  const handleMouseEnter = useCallback(() => {
+    // When mouse enters Clippy or Drag Area, we always want to interact with Clippy
+    // (for animations, right click, etc).
+    // BUT if dragging is disabled, the 'app-drag' div won't be rendered (see below),
+    // so this only fires for the Image or Bubble.
+    window.clippy.setIgnoreMouseEvents(false);
+  }, []);
+
+  // When mouse leaves, revert to default state based on settings
+  const handleMouseLeave = useCallback(() => {
+    // If dragging is disabled, revert to click-through (ignore=true).
+    // If dragging is enabled, revert to capture (ignore=false).
+    const ignore = !settings.allowMoveClippy;
+    window.clippy.setIgnoreMouseEvents(ignore, { forward: true });
+  }, [settings.allowMoveClippy]);
+
+  // Only show drag handle if moving is allowed
+  // Ensure default is true if undefined to match main process logic
+  const isMoveAllowed = settings.allowMoveClippy ?? true;
+
   return (
     <div>
-      <SpeechBubble onVisibilityChange={handleBubbleVisibilityChange} />
-      <div
-        className="app-drag"
-        style={{
-          position: "absolute",
-          height: "93px",
-          width: "124px",
-          backgroundColor: enableDragDebug ? "blue" : "transparent",
-          opacity: 0.5,
-          zIndex: 5,
-        }}>
+      <SpeechBubble
+        onVisibilityChange={handleBubbleVisibilityChange}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      />
+      {isMoveAllowed && (
         <div
-          className="app-no-drag"
+          className="app-drag"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
           style={{
             position: "absolute",
-            height: "80px",
-            width: "45px",
-            backgroundColor: enableDragDebug ? "red" : "transparent",
-            zIndex: 10,
-            right: "40px",
-            top: "2px",
-            cursor: "pointer",
-          }}
-          onClick={handleClick}></div>
-      </div>
+            height: "93px",
+            width: "124px",
+            backgroundColor: enableDragDebug ? "blue" : "transparent",
+            opacity: 0.5,
+            zIndex: 5,
+          }}>
+          <div
+            className="app-no-drag"
+            style={{
+              position: "absolute",
+              height: "80px",
+              width: "45px",
+              backgroundColor: enableDragDebug ? "red" : "transparent",
+              zIndex: 10,
+              right: "40px",
+              top: "2px",
+              cursor: "pointer",
+            }}
+            onClick={handleClick}></div>
+        </div>
+      )}
       <img
         className="app-no-select"
         src={animation.src}
         draggable={false}
         alt="Clippy"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       />
     </div>
   );
