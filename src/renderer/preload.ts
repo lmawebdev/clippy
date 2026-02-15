@@ -126,6 +126,18 @@ const clippyApi: ClippyApi = {
   setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => {
     ipcRenderer.invoke(IpcMessages.SET_IGNORE_MOUSE_EVENTS, ignore, options);
   },
+  // External App Trigger
+  onExternalAppTrigger: (
+    callback: (animationKey: string, appName: string) => void,
+  ) => {
+    ipcRenderer.on(
+      IpcMessages.EXTERNAL_APP_TRIGGER,
+      (_event, animationKey, appName) => callback(animationKey, appName),
+    );
+  },
+  offExternalAppTrigger: () => {
+    ipcRenderer.removeAllListeners(IpcMessages.EXTERNAL_APP_TRIGGER);
+  },
 };
 
 contextBridge.exposeInMainWorld("clippy", clippyApi);

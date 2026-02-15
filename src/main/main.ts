@@ -14,6 +14,8 @@ import { setupAutoUpdater } from "./update";
 import { setupAppMenu } from "./menu";
 import { setupKeyboardListener } from "./keyboard";
 
+import { startMonitor } from "./monitor";
+
 async function onReady() {
   console.info(`Welcome to Clippy v${app.getVersion()}`);
 
@@ -24,6 +26,9 @@ async function onReady() {
   setupKeyboardListener();
   setupWindowListener();
   await createMainWindow();
+
+  // Start external app monitoring
+  startMonitor();
 }
 
 async function loadLlm() {

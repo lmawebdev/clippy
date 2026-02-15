@@ -312,6 +312,44 @@ export function Clippy() {
     };
   }, [isBubbleVisible, clearScheduler, setIdleFrame, startIdleLoop]);
 
+  // Handle External App Triggers
+  useEffect(() => {
+    const handleExternalAppTrigger = (key: string, _appName: string) => {
+      // If bubble is visible, don't interrupt
+      if (isBubbleVisible) return;
+
+      // Check if animation exists
+      if (!ANIMATIONS[key]) return;
+
+      clearScheduler();
+      activityRef.current = "external-app-trigger";
+
+      playOneAnimation(ANIMATIONS[key], () => {
+        // "luego que vuelva a su estado normal"
+        setIdleFrame();
+
+        // Wait a bit before resuming idle loop
+        const waitTime = 2000 + Math.floor(Math.random() * 1000);
+
+        timeoutRef.current = window.setTimeout(() => {
+          activityRef.current = "idle-loop";
+          startIdleLoop();
+        }, waitTime);
+      });
+    };
+
+    window.clippy.onExternalAppTrigger(handleExternalAppTrigger);
+    return () => {
+      window.clippy.offExternalAppTrigger();
+    };
+  }, [
+    isBubbleVisible,
+    clearScheduler,
+    playOneAnimation,
+    setIdleFrame,
+    startIdleLoop,
+  ]);
+
   // --- Mouse Events for Click-Through ---
   useEffect(() => {
     // If dragging is enabled (allowMoveClippy=true), we want to CAPTURE events by default (ignore=false).

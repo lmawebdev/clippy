@@ -69,6 +69,11 @@ export type ClippyApi = {
     ignore: boolean,
     options?: { forward: boolean },
   ) => void;
+  // External App Trigger
+  onExternalAppTrigger: (
+    callback: (animationKey: string, appName: string) => void,
+  ) => void;
+  offExternalAppTrigger: () => void;
 };
 
 declare global {
