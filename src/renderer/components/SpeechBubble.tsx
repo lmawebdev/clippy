@@ -21,18 +21,26 @@ export function SpeechBubble({
   onVisibilityChange,
   onMouseEnter,
   onMouseLeave,
-}: SpeechBubbleProps) {
+  mode = "tips", // "tips" | "stats"
+}: SpeechBubbleProps & { mode?: "tips" | "stats" }) {
   const { settings } = useSharedState();
   const [currentTip, setCurrentTip] = useState<Tip | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+
+  // Stats state
+  const [systemInfo, setSystemInfo] = useState<any>(null);
 
   // Notify parent when visibility changes
   useEffect(() => {
     onVisibilityChange?.(isVisible && !isExiting);
   }, [isVisible, isExiting, onVisibilityChange]);
 
+  // TIPS MODE LOGIC
   const showTip = useCallback(async () => {
+    // Only show tips if mode is tips!
+    if (mode !== "tips") return;
+
     if (!settings.tipBubbleEnabled || settings.tipBubbleInterval === "silent") {
       return;
     }
@@ -59,9 +67,15 @@ export function SpeechBubble({
     } catch (error) {
       console.error("Error showing tip:", error);
     }
-  }, [settings]);
+  }, [settings, mode]);
 
+  // Effect for TIPS scheduling
   useEffect(() => {
+    // If not in tips mode, do nothing regarding tips scheduling
+    if (mode !== "tips") {
+      return;
+    }
+
     if (!settings.tipBubbleEnabled || settings.tipBubbleInterval === "silent") {
       return;
     }
@@ -77,9 +91,50 @@ export function SpeechBubble({
       clearTimeout(initialTimeout);
       clearInterval(interval);
     };
-  }, [settings.tipBubbleEnabled, settings.tipBubbleInterval, showTip]);
+  }, [settings.tipBubbleEnabled, settings.tipBubbleInterval, showTip, mode]);
 
-  if (!isVisible || !currentTip) {
+  // STATS MODE LOGIC
+  useEffect(() => {
+    if (mode !== "stats") return;
+
+    // Show stats -> visible true
+    setIsVisible(true);
+    setIsExiting(false);
+
+    // Fetch stats loop
+    const fetchStats = async () => {
+      try {
+        const info = await window.clippy.getSystemInfo();
+        setSystemInfo(info);
+      } catch (e) {
+        console.error("Failed to get system info", e);
+      }
+    };
+
+    fetchStats();
+    const interval = setInterval(fetchStats, 2000);
+
+    // Auto-hide stats after duration
+    const displayDuration = (settings.tipBubbleDuration || 8) * 1000;
+    const timeout = setTimeout(() => {
+      setIsExiting(true);
+      setTimeout(() => {
+        setIsVisible(false);
+        setIsExiting(false);
+      }, 300);
+    }, displayDuration);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [mode, settings.tipBubbleDuration]);
+
+  if (
+    !isVisible ||
+    (!currentTip && mode === "tips") ||
+    (!systemInfo && mode === "stats")
+  ) {
     return null;
   }
 
@@ -92,7 +147,85 @@ export function SpeechBubble({
       aria-live="polite">
       <div className="speech-bubble">
         <div className="speech-bubble-content">
-          <p>{currentTip.content}</p>
+          {mode === "tips" && currentTip && <p>{currentTip.content}</p>}
+          {mode === "stats" && systemInfo && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "2px",
+                width: "100%",
+              }}>
+              <div
+                style={{
+                  fontWeight: "bold",
+                  borderBottom: "1px solid #777",
+                  marginBottom: "2px",
+                  fontSize: "10px",
+                  textAlign: "center",
+                }}>
+                System
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: "9px",
+                }}>
+                <span>CPU:</span>
+                <span>{Math.round(systemInfo.cpuUsage)}%</span>
+              </div>
+              <div
+                style={{
+                  width: "100%",
+                  height: "4px",
+                  background: "#ccc",
+                  border: "1px solid #777",
+                }}>
+                <div
+                  style={{
+                    width: `${Math.min(systemInfo.cpuUsage, 100)}%`,
+                    height: "100%",
+                    background:
+                      systemInfo.cpuUsage > 80 ? "#ff0000" : "#000080",
+                  }}></div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: "9px",
+                  marginTop: "2px",
+                }}>
+                <span>RAM:</span>
+                <span>
+                  {Math.round(
+                    (systemInfo.memoryUsed / 1024 / 1024 / 1024) * 10,
+                  ) / 10}
+                  GB
+                </span>
+              </div>
+              <div
+                style={{
+                  width: "100%",
+                  height: "4px",
+                  background: "#ccc",
+                  border: "1px solid #777",
+                }}>
+                <div
+                  style={{
+                    width: `${Math.min((systemInfo.memoryUsed / systemInfo.memoryTotal) * 100, 100)}%`,
+                    height: "100%",
+                    background:
+                      systemInfo.memoryUsed / systemInfo.memoryTotal > 0.8
+                        ? "#ff0000"
+                        : "#000080",
+                  }}></div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

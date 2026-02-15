@@ -129,11 +129,19 @@ export function Clippy() {
 
   // --- Interaction Handlers ---
 
-  // Handle "Click"
-  const handleClick = useCallback(() => {
-    if (isBubbleVisible) return; // Don't interrupt bubble
+  // Mode state for speech bubble
+  const [speechBubbleMode, setSpeechBubbleMode] = useState<"tips" | "stats">(
+    "tips",
+  );
 
-    // Interrupt current activity
+  // Handle "Click" on Clippy
+  const handleClick = useCallback(() => {
+    // Toggle mode
+    setSpeechBubbleMode((prev) => (prev === "tips" ? "stats" : "tips"));
+
+    if (isBubbleVisible) return; // Don't interrupt bubble animation if visible
+
+    // Interrupt current activity for animation
     clearScheduler();
     activityRef.current = "click-reaction";
 
@@ -184,6 +192,12 @@ export function Clippy() {
         });
       } else {
         // Bubble disappeared, visible = false
+
+        // If we were in stats mode, reset to tips so next click opens stats again
+        if (speechBubbleMode === "stats") {
+          setSpeechBubbleMode("tips");
+        }
+
         // "cuando desaparece la burbuja, 2 seg, despues seguir con las ráfágas"
 
         // Ensure we break the lookup loop if it was pending
@@ -198,7 +212,13 @@ export function Clippy() {
         }, 2000);
       }
     },
-    [clearScheduler, playOneAnimation, setIdleFrame, startIdleLoop],
+    [
+      clearScheduler,
+      playOneAnimation,
+      setIdleFrame,
+      startIdleLoop,
+      speechBubbleMode,
+    ],
   );
 
   // --- Effects ---
@@ -384,6 +404,7 @@ export function Clippy() {
         onVisibilityChange={handleBubbleVisibilityChange}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        mode={speechBubbleMode}
       />
       {isMoveAllowed && (
         <div
@@ -420,6 +441,8 @@ export function Clippy() {
         alt="Clippy"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
+        style={{ cursor: "pointer" }}
       />
     </div>
   );

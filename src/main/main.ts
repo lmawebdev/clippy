@@ -15,6 +15,7 @@ import { setupAppMenu } from "./menu";
 import { setupKeyboardListener } from "./keyboard";
 
 import { startMonitor } from "./monitor";
+import { startClipboardMonitor } from "./clipboard-monitor";
 
 async function onReady() {
   console.info(`Welcome to Clippy v${app.getVersion()}`);
@@ -29,6 +30,7 @@ async function onReady() {
 
   // Start external app monitoring
   startMonitor();
+  startClipboardMonitor();
 }
 
 async function loadLlm() {
