@@ -201,22 +201,16 @@ const config: ForgeConfig = {
     },
     appBundleId: "com.felixrieseberg.clippy",
     appCategoryType: "public.app-category.productivity",
+    extendInfo: {
+      NSAppleEventsUsageDescription:
+        "Please allow Clippy to know which application is open to show the correct animation.",
+    },
     win32metadata: {
       CompanyName: "Felix Rieseberg",
       OriginalFilename: "Clippy",
     },
-    osxSign: FLAGS.IS_CODESIGNING_ENABLED
-      ? {
-          identity: "Developer ID Application: Felix Rieseberg (LT94ZKYDCJ)",
-        }
-      : undefined,
-    osxNotarize: FLAGS.IS_CODESIGNING_ENABLED
-      ? {
-          appleId: FLAGS.APPLE_ID,
-          appleIdPassword: FLAGS.APPLE_ID_PASSWORD,
-          teamId: "LT94ZKYDCJ",
-        }
-      : undefined,
+    osxSign: undefined,
+    osxNotarize: undefined,
     windowsSign: FLAGS.IS_CODESIGNING_ENABLED ? windowsSign : undefined,
     icon: path.resolve(__dirname, "assets/icon"),
     junk: true,
@@ -280,7 +274,7 @@ const config: ForgeConfig = {
       [FuseV1Options.EnableCookieEncryption]: true,
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
-      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
+      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: false,
       [FuseV1Options.OnlyLoadAppFromAsar]: false,
     }),
   ],
@@ -487,7 +481,9 @@ function getArch() {
   // If we're running in CI, we want to use the arch passed in
   // If someone is passing in a flag, we want to use that, too
   if (process.env.CI || process.argv.some((s) => s.includes("arch"))) {
-    return process.argv.some((s) => s.includes("--arch=arm64")) ? "arm64" : "x64";
+    return process.argv.some((s) => s.includes("--arch=arm64"))
+      ? "arm64"
+      : "x64";
   }
 
   return process.arch;

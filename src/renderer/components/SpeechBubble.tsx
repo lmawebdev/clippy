@@ -3,7 +3,7 @@
  * Positioned within the main 125x100px window
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useSharedState } from "../contexts/SharedStateContext";
 import { getRandomTip, intervalToMs, Tip } from "../helpers/tipProviders";
 
@@ -49,6 +49,16 @@ export function SpeechBubble({
     };
   }, []);
 
+  // Refs to hold latest state for the interval callback
+  const activeAppRef = useRef(activeApp);
+  const settingsRef = useRef(settings);
+
+  // Update refs when state changes
+  useEffect(() => {
+    activeAppRef.current = activeApp;
+    settingsRef.current = settings;
+  }, [activeApp, settings]);
+
   // Notify parent when visibility changes
   useEffect(() => {
     onVisibilityChange?.(isVisible && !isExiting);
@@ -59,19 +69,23 @@ export function SpeechBubble({
     // Only show tips if mode is tips!
     if (mode !== "tips") return;
 
-    if (!settings.tipBubbleEnabled || settings.tipBubbleInterval === "silent") {
+    const currentSettings = settingsRef.current;
+    if (
+      !currentSettings.tipBubbleEnabled ||
+      currentSettings.tipBubbleInterval === "silent"
+    ) {
       return;
     }
 
     try {
-      const tip = await getRandomTip(settings, activeApp);
+      const tip = await getRandomTip(currentSettings, activeAppRef.current);
       if (tip) {
         setCurrentTip(tip);
         setIsExiting(false);
         setIsVisible(true);
 
         // Get display duration from settings (convert seconds to ms)
-        const displayDuration = (settings.tipBubbleDuration || 8) * 1000;
+        const displayDuration = (currentSettings.tipBubbleDuration || 8) * 1000;
 
         // Hide after display duration
         setTimeout(() => {
@@ -85,7 +99,7 @@ export function SpeechBubble({
     } catch (error) {
       console.error("Error showing tip:", error);
     }
-  }, [settings, mode]);
+  }, [mode]);
 
   // Effect for TIPS scheduling
   useEffect(() => {
@@ -114,12 +128,17 @@ export function SpeechBubble({
     settings.tipBubbleInterval,
     showTip,
     mode,
-    activeApp,
+    // activeApp is intentionally omitted to avoid resetting timer on app switch
   ]);
 
   // STATS MODE LOGIC
   useEffect(() => {
     if (mode !== "stats") return;
+
+    if (!settings.tipBubbleEnabled) {
+      setIsVisible(false);
+      return;
+    }
 
     // Show stats -> visible true
     setIsVisible(true);
@@ -152,7 +171,7 @@ export function SpeechBubble({
       clearInterval(interval);
       clearTimeout(timeout);
     };
-  }, [mode, settings.tipBubbleDuration]);
+  }, [mode, settings.tipBubbleDuration, settings.tipBubbleEnabled]);
 
   if (
     !isVisible ||
