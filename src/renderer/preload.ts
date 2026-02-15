@@ -138,6 +138,15 @@ const clippyApi: ClippyApi = {
   offExternalAppTrigger: () => {
     ipcRenderer.removeAllListeners(IpcMessages.EXTERNAL_APP_TRIGGER);
   },
+  // Active App Update
+  onActiveAppUpdate: (callback: (appName: string) => void) => {
+    ipcRenderer.on(IpcMessages.ACTIVE_APP_UPDATE, (_event, appName) =>
+      callback(appName),
+    );
+  },
+  offActiveAppUpdate: () => {
+    ipcRenderer.removeAllListeners(IpcMessages.ACTIVE_APP_UPDATE);
+  },
 };
 
 contextBridge.exposeInMainWorld("clippy", clippyApi);

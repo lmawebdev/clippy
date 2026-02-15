@@ -1,6 +1,56 @@
 /**
- * Comprehensive keyboard shortcuts database for Windows, macOS, and Linux
+ * Mapping of app names (from monitor) to shortcut categories or specific logic
  */
+// Add new categories if needed, or map existing ones.
+export const APP_SHORTCUTS_MAP: Record<string, ShortcutCategory[]> = {
+  // Development
+  "Visual Studio Code": ["development"],
+  Code: ["development"],
+  Cursor: ["development"],
+  "IntelliJ IDEA": ["development"],
+  Xcode: ["development"],
+
+  // Browsers
+  "Google Chrome": ["browser"],
+  Safari: ["browser"],
+  Firefox: ["browser"],
+  Arc: ["browser"],
+  Brave: ["browser"],
+
+  // Terminal
+  iTerm2: ["terminal"],
+  Terminal: ["terminal"],
+  Hyper: ["terminal"],
+  Warp: ["terminal"],
+
+  // Design
+  Figma: ["design"],
+  "Adobe Photoshop": ["design"],
+  Photoshop: ["design"],
+  Sketch: ["design"],
+
+  // Files
+  Finder: ["files"],
+
+  // Productivity
+  Obsidian: ["editing", "productivity"],
+  Notion: ["editing", "productivity"],
+  Slack: ["communication"],
+  Discord: ["communication"],
+  "Microsoft Teams": ["communication"],
+};
+
+// Add new categories if needed, or map existing ones.
+// Let's verify categories in ShortcutCategory type.
+// Existing: system, editing, navigation, screenshots, files, browser, terminal, accessibility, windows, productivity
+// We need 'development' and 'communication'? Or map them to existing?
+// Browser -> browser (ok)
+// Terminal -> terminal (ok)
+// Finder -> files (ok)
+// VS Code -> 'development' (new)
+// Slack -> 'communication' (new)
+
+// Let's extend the type definition first.
 
 export interface KeyboardShortcut {
   action: string;
@@ -21,7 +71,10 @@ export type ShortcutCategory =
   | "terminal"
   | "accessibility"
   | "windows"
-  | "productivity";
+  | "productivity"
+  | "development"
+  | "communication"
+  | "design";
 
 export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
   // System shortcuts
@@ -627,6 +680,148 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
     linux: "Alt + F2",
     category: "productivity",
   },
+
+  // Development (VS Code)
+  {
+    action: "Paleta de comandos",
+    description: "Abre la paleta de comandos",
+    mac: "⌘ + Shift + P",
+    windows: "Ctrl + Shift + P",
+    linux: "Ctrl + Shift + P",
+    category: "development",
+  },
+  {
+    action: "Ir a archivo",
+    description: "Búsqueda rápida de archivos",
+    mac: "⌘ + P",
+    windows: "Ctrl + P",
+    linux: "Ctrl + P",
+    category: "development",
+  },
+  {
+    action: "Comentar línea",
+    description: "Alternar comentario de línea",
+    mac: "⌘ + /",
+    windows: "Ctrl + /",
+    linux: "Ctrl + /",
+    category: "development",
+  },
+  {
+    action: "Multi-cursor",
+    description: "Agregar cursor adicional",
+    mac: "Option + Click",
+    windows: "Alt + Click",
+    linux: "Alt + Click",
+    category: "development",
+  },
+  {
+    action: "Formatear documento",
+    description: "Formatea el código",
+    mac: "Shift + Option + F",
+    windows: "Shift + Alt + F",
+    linux: "Ctrl + Shift + I",
+    category: "development",
+  },
+  {
+    action: "Abrir terminal",
+    description: "Alternar panel de terminal",
+    mac: "Control + `",
+    windows: "Ctrl + `",
+    linux: "Ctrl + `",
+    category: "development",
+  },
+
+  // Communication (Slack/Discord)
+  {
+    action: "Cambiar canal",
+    description: "Navegación rápida",
+    mac: "⌘ + K",
+    windows: "Ctrl + K",
+    linux: "Ctrl + K",
+    category: "communication",
+  },
+  {
+    action: "Marcar no leído",
+    description: "Marcar mensaje como no leído",
+    mac: "Option + Click",
+    windows: "Alt + Click",
+    linux: "Alt + Click",
+    category: "communication",
+  },
+  {
+    action: "Editar último mensaje",
+    description: "Editar mensaje anterior",
+    mac: "↑",
+    windows: "↑",
+    linux: "↑",
+    category: "communication",
+  },
+  {
+    action: "Silenciar canal",
+    description: "Silenciar notificaciones",
+    mac: "Esc",
+    windows: "Esc",
+    linux: "Esc",
+    category: "communication",
+  },
+
+  // Design (Figma/Sketch)
+  {
+    action: "Mostrar layout",
+    description: "Alternar grid/layout",
+    mac: "Control + G",
+    windows: "Ctrl + Shift + 4",
+    linux: "Ctrl + Shift + 4",
+    category: "design",
+  },
+  {
+    action: "Seleccionar capa",
+    description: "Seleccionar capa padre",
+    mac: "Shift + Enter",
+    windows: "Shift + Enter",
+    linux: "Shift + Enter",
+    category: "design",
+  },
+  {
+    action: "Duplicar",
+    description: "Duplicar selección",
+    mac: "⌘ + D",
+    windows: "Ctrl + D",
+    linux: "Ctrl + D",
+    category: "design",
+  },
+  {
+    action: "Agrupar",
+    description: "Agrupar selección",
+    mac: "⌘ + G",
+    windows: "Ctrl + G",
+    linux: "Ctrl + G",
+    category: "design",
+  },
+  {
+    action: "Desagrupar",
+    description: "Desagrupar selección",
+    mac: "⌘ + Shift + G",
+    windows: "Ctrl + Shift + G",
+    linux: "Ctrl + Shift + G",
+    category: "design",
+  },
+  {
+    action: "Zoom 100%",
+    description: "Zoom al 100%",
+    mac: "Shift + 0",
+    windows: "Shift + 0",
+    linux: "Shift + 0",
+    category: "design",
+  },
+  {
+    action: "Color Picker",
+    description: "Selector de color",
+    mac: "Control + C",
+    windows: "I",
+    linux: "I",
+    category: "design",
+  },
 ];
 
 /**
@@ -640,9 +835,25 @@ export function getCurrentPlatform(): "mac" | "windows" | "linux" {
 }
 
 /**
- * Get a random shortcut from the database
+ * Get a random shortcut from the database, optionally filtered by app context
  */
-export function getRandomShortcut(): KeyboardShortcut {
+export function getRandomShortcut(appName?: string): KeyboardShortcut {
+  // If app name is provided and we have mapping
+  if (appName && APP_SHORTCUTS_MAP[appName]) {
+    const categories = APP_SHORTCUTS_MAP[appName];
+    // Filter shortcuts by these categories
+    const relevantShortcuts = KEYBOARD_SHORTCUTS.filter((s) =>
+      categories.includes(s.category),
+    );
+
+    // 70% chance to show relevant shortcut if available
+    if (relevantShortcuts.length > 0 && Math.random() < 0.7) {
+      return relevantShortcuts[
+        Math.floor(Math.random() * relevantShortcuts.length)
+      ];
+    }
+  }
+
   const randomIndex = Math.floor(Math.random() * KEYBOARD_SHORTCUTS.length);
   return KEYBOARD_SHORTCUTS[randomIndex];
 }

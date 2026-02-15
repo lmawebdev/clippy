@@ -15,13 +15,37 @@ export type TipType =
   | "shortcut"
   | "greeting"
   | "productivity"
-  | "weather";
+  | "weather"
+  | "health"
+  | "didyouknow";
 
 export interface Tip {
   type: TipType;
   content: string;
   icon: string;
 }
+
+const HEALTH_TIPS = [
+  "👀 Regla 20-20-20: Cada 20 min, mira a 20 pies (6m) por 20 seg.",
+  "💧 ¡Hidrátate! Tu cerebro necesita agua para funcionar bien.",
+  "🧘‍♀️ Endereza la espalda. Tu 'yo' del futuro te lo agradecerá.",
+  "🚶‍♂️ Levántate y camina un poco. El sedentarismo mata la creatividad.",
+  "🌬️ Respira profundo 3 veces. Oxigena tu mente.",
+  "👁️ Parpadea. Cuando miramos pantallas, parpadeamos menos.",
+  "👐 Estira las muñecas y los dedos para prevenir el túnel carpiano.",
+  "🌑 Si es de noche, activa el modo oscuro o Night Shift.",
+];
+
+const DID_YOU_KNOW_TIPS = [
+  "🤓 El primer 'bug' de computadora fue una polilla real atrapada en un relé.",
+  "💾 El primer disco duro de 1GB pesaba más de 200kg (1980).",
+  "🖱️ El primer mouse estaba hecho de madera.",
+  "⌨️ QWERTY se diseñó para que las máquinas de escribir no se atascaran.",
+  "🌐 La primera webcam se usó para vigilar una cafetera en Cambridge.",
+  "🐧 Linux alimenta al 100% de las 500 supercomputadoras más rápidas.",
+  "🍎 El logo original de Apple mostraba a Isaac Newton bajo un árbol.",
+  "📧 El primer email fue enviado por Ray Tomlinson a sí mismo en 1971.",
+];
 
 /**
  * Productivity tips and motivational messages
@@ -130,8 +154,8 @@ async function getSystemTip(): Promise<Tip> {
 /**
  * Get shortcut tip
  */
-function getShortcutTip(): Tip {
-  const shortcut = getRandomShortcut();
+function getShortcutTip(activeApp?: string): Tip {
+  const shortcut = getRandomShortcut(activeApp);
   return {
     type: "shortcut",
     content: formatShortcutForPlatform(shortcut),
@@ -163,9 +187,36 @@ function getProductivityTip(): Tip {
 }
 
 /**
+ * Get health tip
+ */
+function getHealthTip(): Tip {
+  const randomIndex = Math.floor(Math.random() * HEALTH_TIPS.length);
+  return {
+    type: "health",
+    content: HEALTH_TIPS[randomIndex],
+    icon: "🧘",
+  };
+}
+
+/**
+ * Get 'Did you know' tip
+ */
+function getDidYouKnowTip(): Tip {
+  const randomIndex = Math.floor(Math.random() * DID_YOU_KNOW_TIPS.length);
+  return {
+    type: "didyouknow",
+    content: DID_YOU_KNOW_TIPS[randomIndex],
+    icon: "🧠",
+  };
+}
+
+/**
  * WMO Weather Code to emoji and description mapping
  */
-const WMO_WEATHER_CODES: Record<number, { emoji: string; description: string }> = {
+const WMO_WEATHER_CODES: Record<
+  number,
+  { emoji: string; description: string }
+> = {
   0: { emoji: "☀️", description: "Despejado" },
   1: { emoji: "🌤️", description: "Mayormente despejado" },
   2: { emoji: "⛅", description: "Parcialmente nublado" },
@@ -203,17 +254,20 @@ async function getWeatherTip(settings: SettingsState): Promise<Tip> {
   try {
     const { weatherLatitude, weatherLongitude, weatherLocationName } = settings;
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${weatherLatitude}&longitude=${weatherLongitude}&current=temperature_2m,weather_code`;
-    
+
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error("Weather API error");
     }
-    
+
     const data = await response.json();
     const temp = Math.round(data.current.temperature_2m);
     const weatherCode = data.current.weather_code;
-    const weather = WMO_WEATHER_CODES[weatherCode] || { emoji: "🌡️", description: "Desconocido" };
-    
+    const weather = WMO_WEATHER_CODES[weatherCode] || {
+      emoji: "🌡️",
+      description: "Desconocido",
+    };
+
     return {
       type: "weather",
       content: `${weather.emoji} ${temp}°C - ${weather.description}\n📍 ${weatherLocationName}`,
@@ -240,6 +294,8 @@ function getEnabledTipTypes(settings: SettingsState): TipType[] {
   if (settings.tipBubbleShowGreeting) types.push("greeting");
   if (settings.tipBubbleShowProductivity) types.push("productivity");
   if (settings.tipBubbleShowWeather) types.push("weather");
+  if (settings.tipBubbleShowHealth) types.push("health");
+  if (settings.tipBubbleShowDidYouKnow) types.push("didyouknow");
 
   return types;
 }
@@ -247,14 +303,26 @@ function getEnabledTipTypes(settings: SettingsState): TipType[] {
 /**
  * Get a random tip based on enabled settings
  */
-export async function getRandomTip(settings: SettingsState): Promise<Tip | null> {
+export async function getRandomTip(
+  settings: SettingsState,
+  activeApp?: string,
+): Promise<Tip | null> {
   const enabledTypes = getEnabledTipTypes(settings);
 
   if (enabledTypes.length === 0) {
     return null;
   }
 
-  const randomType = enabledTypes[Math.floor(Math.random() * enabledTypes.length)];
+  // If specific app is active and supports shortcuts, increase shortcut probability
+  let randomType: TipType;
+
+  // Simple heuristic: 40% chance to show shortcut if app context is available
+  // and shortcuts are enabled
+  if (activeApp && settings.tipBubbleShowShortcuts && Math.random() < 0.4) {
+    randomType = "shortcut";
+  } else {
+    randomType = enabledTypes[Math.floor(Math.random() * enabledTypes.length)];
+  }
 
   switch (randomType) {
     case "time":
@@ -262,15 +330,19 @@ export async function getRandomTip(settings: SettingsState): Promise<Tip | null>
     case "system":
       return getSystemTip();
     case "shortcut":
-      return getShortcutTip();
+      return getShortcutTip(activeApp);
     case "greeting":
       return getGreetingTip();
     case "productivity":
       return getProductivityTip();
     case "weather":
       return getWeatherTip(settings);
+    case "health":
+      return getHealthTip();
+    case "didyouknow":
+      return getDidYouKnowTip();
     default:
-      return getShortcutTip();
+      return getShortcutTip(activeApp);
   }
 }
 

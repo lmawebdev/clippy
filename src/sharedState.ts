@@ -29,6 +29,8 @@ export interface SettingsState {
   tipBubbleShowGreeting: boolean;
   tipBubbleShowProductivity: boolean;
   tipBubbleShowWeather: boolean;
+  tipBubbleShowHealth: boolean;
+  tipBubbleShowDidYouKnow: boolean;
   tipBubbleDuration: number; // seconds (5-38)
   tipBubbleTimeFormat: "12h" | "24h";
   // Weather location settings
@@ -41,7 +43,13 @@ export interface SettingsState {
   allowMoveClippy?: boolean;
   // External API settings
   useExternalApi?: boolean;
-  externalApiProvider?: "openai" | "anthropic" | "gemini" | "perplexity" | "openrouter" | "grok";
+  externalApiProvider?:
+    | "openai"
+    | "anthropic"
+    | "gemini"
+    | "perplexity"
+    | "openrouter"
+    | "grok";
   externalApiKey?: string;
   externalModelId?: string;
 }
@@ -84,6 +92,8 @@ export const DEFAULT_SETTINGS: SettingsState = {
   tipBubbleShowGreeting: true,
   tipBubbleShowProductivity: true,
   tipBubbleShowWeather: true,
+  tipBubbleShowHealth: true,
+  tipBubbleShowDidYouKnow: true,
   tipBubbleDuration: 8, // default 8 seconds
   tipBubbleTimeFormat: "24h",
   // Weather location defaults (Madrid, Spain)

@@ -30,6 +30,24 @@ export function SpeechBubble({
 
   // Stats state
   const [systemInfo, setSystemInfo] = useState<any>(null);
+  const [activeApp, setActiveApp] = useState<string>("");
+
+  // Listen for active app updates
+  useEffect(() => {
+    const handleAppUpdate = (appName: string) => {
+      setActiveApp(appName);
+    };
+
+    if (window.clippy.onActiveAppUpdate) {
+      window.clippy.onActiveAppUpdate(handleAppUpdate);
+    }
+
+    return () => {
+      if (window.clippy.offActiveAppUpdate) {
+        window.clippy.offActiveAppUpdate();
+      }
+    };
+  }, []);
 
   // Notify parent when visibility changes
   useEffect(() => {
@@ -46,7 +64,7 @@ export function SpeechBubble({
     }
 
     try {
-      const tip = await getRandomTip(settings);
+      const tip = await getRandomTip(settings, activeApp);
       if (tip) {
         setCurrentTip(tip);
         setIsExiting(false);
@@ -91,7 +109,13 @@ export function SpeechBubble({
       clearTimeout(initialTimeout);
       clearInterval(interval);
     };
-  }, [settings.tipBubbleEnabled, settings.tipBubbleInterval, showTip, mode]);
+  }, [
+    settings.tipBubbleEnabled,
+    settings.tipBubbleInterval,
+    showTip,
+    mode,
+    activeApp,
+  ]);
 
   // STATS MODE LOGIC
   useEffect(() => {

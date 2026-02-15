@@ -15,7 +15,7 @@ export const SettingsAppearance: React.FC = () => {
   };
 
   const onReset = () => {
-    const defaultAppareanceSettings: SettingsState = {
+    const defaultAppareanceSettings: Partial<SettingsState> = {
       defaultFont: DEFAULT_SETTINGS.defaultFont,
       defaultFontSize: DEFAULT_SETTINGS.defaultFontSize,
       clippyAlwaysOnTop: DEFAULT_SETTINGS.clippyAlwaysOnTop,
@@ -84,8 +84,7 @@ export const SettingsAppearance: React.FC = () => {
             value={settings.defaultFont}
             onChange={(event) => {
               clippyApi.setState("settings.defaultFont", event.target.value);
-            }}
-          >
+            }}>
             <option value="Pixelated MS Sans Serif">
               Pixelated MS Sans Serif
             </option>

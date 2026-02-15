@@ -74,6 +74,9 @@ export type ClippyApi = {
     callback: (animationKey: string, appName: string) => void,
   ) => void;
   offExternalAppTrigger: () => void;
+  // Active App Update
+  onActiveAppUpdate: (callback: (appName: string) => void) => void;
+  offActiveAppUpdate: () => void;
 };
 
 declare global {

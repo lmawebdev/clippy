@@ -331,6 +331,13 @@ export function startMonitor() {
 
     if (currentApp && currentApp !== previousApp) {
       previousApp = currentApp;
+
+      const win = getMainWindow();
+      if (win && !win.isDestroyed()) {
+        // Always notify renderer of app change for context-aware tips
+        win.webContents.send(IpcMessages.ACTIVE_APP_UPDATE, currentApp);
+      }
+
       // Check if we have an animation for this app
       // We also handle partial matches or case sensitivity if needed, but osascript usually returns proper Name
 
@@ -341,7 +348,6 @@ export function startMonitor() {
       // But usually "name of active app" is the main name.
 
       if (animationKey) {
-        const win = getMainWindow();
         if (win && !win.isDestroyed()) {
           console.log(
             `[Monitor] Detected ${currentApp}, triggering ${animationKey}`,

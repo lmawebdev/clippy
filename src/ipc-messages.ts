@@ -53,4 +53,5 @@ export const IpcMessages = {
   GLOBAL_KEY_DOWN: "clippy_global_key_down",
   SET_IGNORE_MOUSE_EVENTS: "clippy_set_ignore_mouse_events",
   EXTERNAL_APP_TRIGGER: "clippy_external_app_trigger",
+  ACTIVE_APP_UPDATE: "clippy_active_app_update",
 };
