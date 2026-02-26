@@ -1,7 +1,7 @@
-import { exec } from "child_process";
 import { BrowserWindow } from "electron";
 import { IpcMessages } from "../ipc-messages";
 import { getMainWindow } from "./windows";
+import { getActiveAppName as getActiveApp } from "./helpers/activeApp";
 
 // Mapping of application names to Clippy animations
 const APP_ANIMATION_MAP: Record<string, string> = {
@@ -299,37 +299,6 @@ const APP_ANIMATION_MAP: Record<string, string> = {
 let previousApp = "";
 let monitorInterval: NodeJS.Timeout | null = null;
 const CHECK_INTERVAL_MS = 2000;
-
-// Need to allow some valid return from osascript
-// Need to allow some valid return from osascript or lsappinfo
-function getActiveApp(): Promise<string> {
-  return new Promise((resolve) => {
-    // macOS only command to get frontmost application name using lsappinfo
-    // This avoids triggering "System Events" automation permission prompts
-    const cmd = `lsappinfo info -only LSDisplayName,CFBundleName \`lsappinfo front\``;
-
-    exec(cmd, (error, stdout) => {
-      if (error) {
-        // Silently fail or log debug, return empty
-        resolve("");
-        return;
-      }
-
-      // Parse output format: "LSDisplayName"="Name" or "CFBundleName"="Name"
-      const output = stdout.toString();
-      let match = output.match(/"LSDisplayName"="([^"]+)"/);
-      if (!match) {
-        match = output.match(/"CFBundleName"="([^"]+)"/);
-      }
-
-      if (match && match[1]) {
-        resolve(match[1]);
-      } else {
-        resolve("");
-      }
-    });
-  });
-}
 
 export function startMonitor() {
   if (monitorInterval) return;

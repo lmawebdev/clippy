@@ -1,4 +1,4 @@
-import { clipboard, Data, ipcMain } from "electron";
+import { clipboard, Data, ipcMain, nativeImage } from "electron";
 import {
   toggleChatWindow,
   maximizeChatWindow,
@@ -111,14 +111,25 @@ export function setupIpcListeners() {
   );
 
   // Clipboard
-  ipcMain.handle(IpcMessages.CLIPBOARD_WRITE, (_, data: Data) =>
-    clipboard.write(data, "clipboard"),
+  const handleClipboardWrite = (data: any) => {
+    const writeData: any = { ...data };
+    if (
+      writeData.image &&
+      typeof writeData.image === "string" &&
+      writeData.image.startsWith("data:")
+    ) {
+      writeData.image = nativeImage.createFromDataURL(writeData.image);
+    }
+    clipboard.write(writeData, "clipboard");
+  };
+
+  ipcMain.handle(IpcMessages.CLIPBOARD_WRITE, (_, data: any) =>
+    handleClipboardWrite(data),
   );
-  ipcMain.handle(IpcMessages.CLIPBOARD_WRITE_SILENT, (_, data: Data) => {
-    // We'll use a global flag or similar, but for now we just write.
-    // The clipboard monitor will need to check this.
+  ipcMain.handle(IpcMessages.CLIPBOARD_WRITE_SILENT, (_, data: any) => {
+    // Prevent the clipboard monitor from capturing this as a NEW entry
     (global as any).isInternalClipboardUpdate = true;
-    clipboard.write(data, "clipboard");
+    handleClipboardWrite(data);
   });
   ipcMain.handle(IpcMessages.GET_CLIPBOARD_HISTORY, () =>
     getClipboardHistory(),

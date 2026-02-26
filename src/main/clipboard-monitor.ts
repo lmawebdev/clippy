@@ -1,6 +1,6 @@
 import { clipboard, BrowserWindow } from "electron";
 import { IpcMessages } from "../ipc-messages";
-import { exec } from "child_process";
+import { getActiveAppName } from "./helpers/activeApp";
 import {
   addClipboardItem,
   saveImageToStore,
@@ -14,28 +14,6 @@ let checkInterval: NodeJS.Timeout | null = null;
 let lastText = "";
 let lastImageDataUrl = "";
 let pruneInterval: NodeJS.Timeout | null = null;
-
-/**
- * Get the name of the currently active application (macOS only).
- */
-function getActiveAppName(): Promise<string> {
-  return new Promise((resolve) => {
-    if (process.platform !== "darwin") {
-      resolve("Unknown");
-      return;
-    }
-    exec(
-      `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`,
-      (err, stdout) => {
-        if (err) {
-          resolve("Unknown");
-        } else {
-          resolve(stdout.trim() || "Unknown");
-        }
-      },
-    );
-  });
-}
 
 function broadcastClipboardUpdate() {
   const windows = BrowserWindow.getAllWindows();

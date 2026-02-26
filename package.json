@@ -7,7 +7,9 @@
   "scripts": {
     "start": "electron-forge start",
     "package": "NODE_OPTIONS='--no-deprecation' electron-forge package",
+    "package:mac": "NODE_OPTIONS='--no-deprecation' IS_CODESIGNING_ENABLED=false electron-forge package --platform darwin",
     "make": "electron-forge make",
+    "make:mac": "NODE_OPTIONS='--no-deprecation' IS_CODESIGNING_ENABLED=false electron-forge make --platform darwin",
     "publish": "electron-forge publish",
     "lint": "prettier --write --ext .ts,.tsx .",
     "extract-animations": "./tools/extract-animations.sh -j ./assets/animations/clippy/animations.json -s ./assets/animations/clippy/map.png -o src/renderer/images/animations"

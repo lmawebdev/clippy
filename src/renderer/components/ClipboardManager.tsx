@@ -102,23 +102,33 @@ export const ClipboardManager: React.FC<ClipboardManagerProps> = ({
     [imageCache],
   );
 
-  const handleCopyItem = useCallback(async (item: ClipboardItem) => {
-    if (item.type === "text") {
-      await clippyApi.clipboardWriteSilent({ text: item.content });
+  const handleCopyItem = useCallback(
+    async (item: ClipboardItem) => {
+      if (item.type === "text") {
+        await clippyApi.clipboardWriteSilent({ text: item.content });
+      } else if (item.type === "image") {
+        const dataUrl =
+          imageCache[item.id] ||
+          (await clippyApi.getClipboardImage(item.content));
+        if (dataUrl) {
+          await clippyApi.clipboardWriteSilent({ image: dataUrl as any });
+        }
+      }
       setCopiedId(item.id);
       setTimeout(() => setCopiedId(null), 1200);
-    }
-  }, []);
+    },
+    [imageCache],
+  );
 
   const handleSelect = useCallback(
     (item: ClipboardItem) => {
       setSelectedId(item.id === selectedId ? null : item.id);
       if (item.type === "image") {
         loadImage(item);
-      } else {
-        // Auto-copy text on click
-        handleCopyItem(item);
       }
+
+      // Auto-copy to clipboard on click (matches behavior for both text and images)
+      handleCopyItem(item);
     },
     [selectedId, loadImage, handleCopyItem],
   );
@@ -213,7 +223,9 @@ export const ClipboardManager: React.FC<ClipboardManagerProps> = ({
                 ...(item.id === selectedId ? styles.listItemSelected : {}),
               }}
               title={
-                item.type === "text" ? "Click to copy" : "Click to preview"
+                item.type === "text"
+                  ? "Click to copy text"
+                  : "Click to preview image"
               }
               onClick={() => handleSelect(item)}>
               <div style={styles.listItemIcon}>
@@ -315,6 +327,13 @@ export const ClipboardManager: React.FC<ClipboardManagerProps> = ({
                     )}
                   </div>
                   <div style={styles.detailActions}>
+                    <button
+                      style={styles.copyBtn}
+                      onClick={() => handleCopyItem(selectedItem)}>
+                      {copiedId === selectedItem.id
+                        ? "✅ Copied!"
+                        : "📋 Copy to clipboard"}
+                    </button>
                     <button
                       style={styles.deleteBtnLarge}
                       onClick={(e) => handleDelete(selectedItem.id, e)}>
