@@ -1,6 +1,8 @@
 export const IpcMessages = {
   // Window messages
   TOGGLE_CHAT_WINDOW: "clippy_toggle_chat_window",
+  SHOW_CHAT_WINDOW: "clippy_show_chat_window",
+  HIDE_CHAT_WINDOW: "clippy_hide_chat_window",
   MINIMIZE_CHAT_WINDOW: "clippy_minimize_chat_window",
   MAXIMIZE_CHAT_WINDOW: "clippy_maximize_chat_window",
   SET_BUBBLE_VIEW: "clippy_set_bubble_view",
@@ -45,6 +47,13 @@ export const IpcMessages = {
 
   // Clipboard
   CLIPBOARD_WRITE: "clippy_clipboard_write",
+  CLIPBOARD_WRITE_SILENT: "clippy_clipboard_write_silent",
+  CLIPBOARD_HISTORY_UPDATED: "clippy_clipboard_history_updated",
+  GET_CLIPBOARD_HISTORY: "clippy_get_clipboard_history",
+  DELETE_CLIPBOARD_ITEM: "clippy_delete_clipboard_item",
+  CLEAR_CLIPBOARD_HISTORY: "clippy_clear_clipboard_history",
+  GET_CLIPBOARD_IMAGE: "clippy_get_clipboard_image",
+  OPEN_CLIPBOARD: "clippy_open_clipboard",
 
   // System info
   GET_SYSTEM_INFO: "clippy_get_system_info",

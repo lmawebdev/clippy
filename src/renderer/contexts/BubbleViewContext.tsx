@@ -4,12 +4,14 @@ import { clippyApi } from "../clippyApi";
 export type BubbleView =
   | "chat"
   | "chats"
+  | "clipboard"
   | "settings"
   | "settings-general"
   | "settings-tips"
   | "settings-model"
   | "settings-parameters"
   | "settings-advanced"
+  | "settings-clipboard"
   | "settings-about";
 
 type BubbleViewContextType = {

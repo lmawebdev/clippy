@@ -11,7 +11,12 @@ import { FileTransport } from "electron-log";
 import { getStateManager } from "./state";
 
 import type { BubbleView } from "../renderer/contexts/BubbleViewContext";
-import { getMainWindow, toggleChatWindow, showChatWindow, getChatWindow } from "./windows";
+import {
+  getMainWindow,
+  toggleChatWindow,
+  showChatWindow,
+  getChatWindow,
+} from "./windows";
 import { IpcMessages } from "../ipc-messages";
 import { checkForUpdates } from "./update";
 import {
@@ -137,6 +142,18 @@ export function getMainAppMenu(): Menu {
       accelerator: "Cmd+`",
     }),
   );
+  windowMenu?.submenu?.append(
+    new MenuItem({
+      type: "separator",
+    }),
+  );
+  windowMenu?.submenu?.append(
+    new MenuItem({
+      label: "📋 Clipboard History",
+      click: () => openView("clipboard"),
+      accelerator: "CmdOrCtrl+Shift+V",
+    }),
+  );
 
   return menu;
 }
@@ -196,6 +213,11 @@ function getViewMenu(): MenuItemConstructorOptions[] {
       label: "Chat History",
       click: () => openView("chats"),
     },
+    {
+      label: "Clipboard History",
+      click: () => openView("clipboard"),
+      accelerator: "CmdOrCtrl+Shift+V",
+    },
     { type: "separator" },
     { role: "toggleDevTools" },
     { type: "separator" },
@@ -225,6 +247,10 @@ function getSettingsMenuItem(): MenuItem {
       {
         label: "Parameters",
         click: () => openView("settings-parameters"),
+      },
+      {
+        label: "Clipboard",
+        click: () => openView("settings-clipboard"),
       },
       {
         label: "Advanced",
@@ -299,18 +325,18 @@ function getHelpMenu(): MenuItemConstructorOptions[] {
   ];
 }
 
-function openView(view: BubbleView) {
+export function openView(view: BubbleView) {
   const mainWindow = getMainWindow();
   if (mainWindow) {
     // Send to main window (which forwards to chat via WindowPortal)
     mainWindow.webContents.send(IpcMessages.SET_BUBBLE_VIEW, view);
-    
+
     // Also send directly to chat window if it exists
     const chatWindow = getChatWindow();
     if (chatWindow) {
       chatWindow.webContents.send(IpcMessages.SET_BUBBLE_VIEW, view);
     }
-    
+
     // Ensure chat window is open
     showChatWindow();
   }

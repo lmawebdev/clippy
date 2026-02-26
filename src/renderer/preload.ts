@@ -25,6 +25,18 @@ const clippyApi: ClippyApi = {
   offSetBubbleView() {
     ipcRenderer.removeAllListeners(IpcMessages.SET_BUBBLE_VIEW);
   },
+  onShowChatWindow(callback: () => void) {
+    ipcRenderer.on(IpcMessages.SHOW_CHAT_WINDOW, () => callback());
+  },
+  offShowChatWindow() {
+    ipcRenderer.removeAllListeners(IpcMessages.SHOW_CHAT_WINDOW);
+  },
+  onToggleChatWindow(callback: () => void) {
+    ipcRenderer.on(IpcMessages.TOGGLE_CHAT_WINDOW, () => callback());
+  },
+  offToggleChatWindow() {
+    ipcRenderer.removeAllListeners(IpcMessages.TOGGLE_CHAT_WINDOW);
+  },
   popupAppMenu: () => ipcRenderer.invoke(IpcMessages.POPUP_APP_MENU),
 
   // Models
@@ -111,6 +123,22 @@ const clippyApi: ClippyApi = {
   // Clipboard
   clipboardWrite: (data: Data) =>
     ipcRenderer.invoke(IpcMessages.CLIPBOARD_WRITE, data),
+  clipboardWriteSilent: (data: Data) =>
+    ipcRenderer.invoke(IpcMessages.CLIPBOARD_WRITE_SILENT, data),
+  getClipboardHistory: () =>
+    ipcRenderer.invoke(IpcMessages.GET_CLIPBOARD_HISTORY),
+  deleteClipboardItem: (id: string) =>
+    ipcRenderer.invoke(IpcMessages.DELETE_CLIPBOARD_ITEM, id),
+  clearClipboardHistory: () =>
+    ipcRenderer.invoke(IpcMessages.CLEAR_CLIPBOARD_HISTORY),
+  getClipboardImage: (filename: string) =>
+    ipcRenderer.invoke(IpcMessages.GET_CLIPBOARD_IMAGE, filename),
+  onClipboardHistoryUpdated: (callback: () => void) => {
+    ipcRenderer.on(IpcMessages.CLIPBOARD_HISTORY_UPDATED, callback);
+  },
+  offClipboardHistoryUpdated: () => {
+    ipcRenderer.removeAllListeners(IpcMessages.CLIPBOARD_HISTORY_UPDATED);
+  },
 
   // System Info
   getSystemInfo: () => ipcRenderer.invoke(IpcMessages.GET_SYSTEM_INFO),

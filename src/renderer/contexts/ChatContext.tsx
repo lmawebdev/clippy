@@ -437,6 +437,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   }, [loadModel, unloadModel]);
 
+  // Handle show/toggle events from main process (menu/shortcuts)
+  useEffect(() => {
+    clippyApi.offShowChatWindow();
+    clippyApi.onShowChatWindow(() => {
+      setIsChatWindowOpen(true);
+    });
+
+    clippyApi.offToggleChatWindow();
+    clippyApi.onToggleChatWindow(() => {
+      setIsChatWindowOpen((prev) => !prev);
+    });
+
+    return () => {
+      clippyApi.offShowChatWindow();
+      clippyApi.offToggleChatWindow();
+    };
+  }, []);
+
   const value = {
     chatRecords,
     currentChatRecord,

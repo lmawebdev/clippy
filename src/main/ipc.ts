@@ -16,6 +16,13 @@ import { getVersions } from "./helpers/getVersions";
 import { getClippyDebugInfo } from "./debug-clippy";
 import { getDebugManager } from "./debug";
 import { getSystemInfo } from "./helpers/systemInfo";
+import {
+  getClipboardHistory,
+  deleteClipboardItem,
+  clearClipboardHistory,
+  getImagePath,
+} from "./clipboard-store";
+import * as fs from "fs";
 
 export function setupIpcListeners() {
   // Window
@@ -107,6 +114,31 @@ export function setupIpcListeners() {
   ipcMain.handle(IpcMessages.CLIPBOARD_WRITE, (_, data: Data) =>
     clipboard.write(data, "clipboard"),
   );
+  ipcMain.handle(IpcMessages.CLIPBOARD_WRITE_SILENT, (_, data: Data) => {
+    // We'll use a global flag or similar, but for now we just write.
+    // The clipboard monitor will need to check this.
+    (global as any).isInternalClipboardUpdate = true;
+    clipboard.write(data, "clipboard");
+  });
+  ipcMain.handle(IpcMessages.GET_CLIPBOARD_HISTORY, () =>
+    getClipboardHistory(),
+  );
+  ipcMain.handle(IpcMessages.DELETE_CLIPBOARD_ITEM, (_, id: string) =>
+    deleteClipboardItem(id),
+  );
+  ipcMain.handle(IpcMessages.CLEAR_CLIPBOARD_HISTORY, () =>
+    clearClipboardHistory(),
+  );
+  ipcMain.handle(IpcMessages.GET_CLIPBOARD_IMAGE, (_, filename: string) => {
+    const imgPath = getImagePath(filename);
+    if (!fs.existsSync(imgPath)) return null;
+    try {
+      const data = fs.readFileSync(imgPath);
+      return `data:image/png;base64,${data.toString("base64")}`;
+    } catch {
+      return null;
+    }
+  });
 
   // System Info
   ipcMain.handle(IpcMessages.GET_SYSTEM_INFO, () => getSystemInfo());

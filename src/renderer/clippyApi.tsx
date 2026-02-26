@@ -12,6 +12,15 @@ import { DebugState } from "../debugState";
 import type { BubbleView } from "./contexts/BubbleViewContext";
 import { Data } from "electron";
 
+export interface ClipboardItem {
+  id: string;
+  type: "text" | "image";
+  content: string;
+  appName: string;
+  timestamp: number;
+  preview?: string;
+}
+
 export type ClippyApi = {
   // Window
   toggleChatWindow: () => Promise<void>;
@@ -19,6 +28,10 @@ export type ClippyApi = {
   maximizeChatWindow: () => Promise<void>;
   onSetBubbleView: (callback: (bubbleView: BubbleView) => void) => void;
   offSetBubbleView: () => void;
+  onShowChatWindow: (callback: () => void) => void;
+  offShowChatWindow: () => void;
+  onToggleChatWindow: (callback: () => void) => void;
+  offToggleChatWindow: () => void;
   popupAppMenu: () => void;
   // Models
   updateModelState: () => Promise<void>;
@@ -59,6 +72,13 @@ export type ClippyApi = {
   offUnloadModel: () => void;
   // Clipboard
   clipboardWrite: (data: Data) => Promise<void>;
+  clipboardWriteSilent: (data: Data) => Promise<void>;
+  getClipboardHistory: () => Promise<ClipboardItem[]>;
+  deleteClipboardItem: (id: string) => Promise<void>;
+  clearClipboardHistory: () => Promise<void>;
+  getClipboardImage: (filename: string) => Promise<string | null>;
+  onClipboardHistoryUpdated: (callback: () => void) => void;
+  offClipboardHistoryUpdated: () => void;
   // System Info
   getSystemInfo: () => Promise<SystemInfo | null>;
   // Global Input

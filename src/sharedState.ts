@@ -41,6 +41,9 @@ export interface SettingsState {
   modelAutoLoad: boolean;
   clippyPosition?: { x: number; y: number };
   allowMoveClippy?: boolean;
+  // Clipboard manager settings
+  clipboardRetentionPolicy?: "forever" | "7d" | "30d" | "6m" | "1y";
+  clipboardSaveImages?: boolean;
   // External API settings
   useExternalApi?: boolean;
   externalApiProvider?:

@@ -6,6 +6,7 @@ import { Settings } from "./Settings";
 import { useBubbleView } from "../contexts/BubbleViewContext";
 import { Chats } from "./Chats";
 import { useChat } from "../contexts/ChatContext";
+import { ClipboardManager } from "./ClipboardManager";
 
 export function Bubble() {
   const { currentView, setCurrentView } = useBubbleView();
@@ -41,13 +42,15 @@ export function Bubble() {
     content = <Settings onClose={() => setCurrentView("chat")} />;
   } else if (currentView === "chats") {
     content = <Chats onClose={() => setCurrentView("chat")} />;
+  } else if (currentView === "clipboard") {
+    content = <ClipboardManager onClose={() => setCurrentView("chat")} />;
   }
 
-  const handleSettingsClick = useCallback(() => {
-    if (currentView.startsWith("settings")) {
+  const handleClipboardClick = useCallback(() => {
+    if (currentView === "clipboard") {
       setCurrentView("chat");
     } else {
-      setCurrentView("settings");
+      setCurrentView("clipboard");
     }
   }, [setCurrentView, currentView]);
 
@@ -59,10 +62,34 @@ export function Bubble() {
     }
   }, [setCurrentView, currentView]);
 
+  const handleSettingsClick = useCallback(() => {
+    if (currentView.startsWith("settings")) {
+      setCurrentView("chat");
+    } else {
+      setCurrentView("settings");
+    }
+  }, [setCurrentView, currentView]);
+
+  // ClipboardManager manages its own layout (title bar + body)
+  if (currentView === "clipboard") {
+    return (
+      <div className="bubble-container window" style={containerStyle}>
+        {content}
+      </div>
+    );
+  }
+
+  const titleText =
+    currentView === "chats"
+      ? "Chat History"
+      : currentView.startsWith("settings")
+        ? "Settings"
+        : "Chat with Clippy";
+
   return (
     <div className="bubble-container window" style={containerStyle}>
       <div className="app-drag title-bar">
-        <div className="title-bar-text">Chat with Clippy</div>
+        <div className="title-bar-text">{titleText}</div>
         <div className="title-bar-controls app-no-drag">
           <button
             style={{
@@ -72,7 +99,7 @@ export function Bubble() {
             }}
             onClick={() => {
               startNewChat();
-              setCurrentView("chat"); // Switch back to chat view if we were in settings
+              setCurrentView("chat");
             }}>
             New Chat
           </button>
@@ -84,6 +111,15 @@ export function Bubble() {
             }}
             onClick={handleChatsClick}>
             Chats
+          </button>
+          <button
+            style={{
+              marginRight: "8px",
+              paddingLeft: "8px",
+              paddingRight: "8px",
+            }}
+            onClick={handleClipboardClick}>
+            📋
           </button>
           <button
             style={{

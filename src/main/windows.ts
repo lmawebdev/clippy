@@ -6,6 +6,7 @@ import path from "path";
 import { getStateManager } from "./state";
 import { getDebugManager } from "./debug";
 import { popupAppMenu } from "./menu";
+import { IpcMessages } from "../ipc-messages";
 
 let mainWindow: BrowserWindow | undefined;
 
@@ -243,6 +244,8 @@ export function toggleChatWindow() {
   const chatWindow = getChatWindow();
 
   if (!chatWindow) {
+    // If window doesn't exist, tell the main window to create it
+    getMainWindow()?.webContents.send(IpcMessages.TOGGLE_CHAT_WINDOW);
     return;
   }
 
@@ -266,6 +269,8 @@ export function showChatWindow() {
   const chatWindow = getChatWindow();
 
   if (!chatWindow) {
+    // If window doesn't exist, tell the main window to create it
+    getMainWindow()?.webContents.send(IpcMessages.SHOW_CHAT_WINDOW);
     return;
   }
 

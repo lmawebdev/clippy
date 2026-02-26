@@ -5,13 +5,13 @@ if (shouldQuit) {
   app.quit();
 }
 
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, globalShortcut } from "electron";
 import { loadElectronLlm } from "@electron/llm";
 import { setupIpcListeners } from "./ipc";
 import { createMainWindow, setupWindowListener } from "./windows";
 import { getModelManager } from "./models";
 import { setupAutoUpdater } from "./update";
-import { setupAppMenu } from "./menu";
+import { setupAppMenu, openView } from "./menu";
 import { setupKeyboardListener } from "./keyboard";
 
 import { startMonitor } from "./monitor";
@@ -27,6 +27,11 @@ async function onReady() {
   setupKeyboardListener();
   setupWindowListener();
   await createMainWindow();
+
+  // Register global shortcut for clipboard history
+  globalShortcut.register("CmdOrCtrl+Shift+V", () => {
+    openView("clipboard");
+  });
 
   // Start external app monitoring
   startMonitor();
@@ -61,4 +66,9 @@ app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createMainWindow();
   }
+});
+
+app.on("will-quit", () => {
+  // Unregister all shortcuts.
+  globalShortcut.unregisterAll();
 });
