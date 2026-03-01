@@ -118,7 +118,7 @@ const APP_ANIMATION_MAP: Record<string, string> = {
   Heptabase: "Writing",
   Tana: "Writing",
 
-  // --- Task Management -> Alert/Check ---
+  // --- Task Management -> Alert ---
   Reminders: "Alert",
   "Microsoft To Do": "Alert",
   Things: "Alert",
@@ -138,7 +138,7 @@ const APP_ANIMATION_MAP: Record<string, string> = {
   Amie: "Alert",
 
   // --- Development -> GetTechy/Processing ---
-  Code: "GetTechy", // VS Code
+  Code: "GetTechy",
   "Visual Studio Code": "GetTechy",
   "Visual Studio Code - Insiders": "GetTechy",
   Cursor: "GetTechy",
@@ -202,6 +202,49 @@ const APP_ANIMATION_MAP: Record<string, string> = {
   Tabby: "Processing",
   Fig: "Processing",
 
+  // --- Windows-specific process names (sin .exe) ---
+  // Windows devuelve ProcessName sin extensión como fallback
+  chrome: "Searching",
+  msedge: "Searching",
+  firefox: "Searching",
+  brave: "Searching",
+  opera: "Searching",
+  spotify: "Hearing 1",
+  vlc: "Hearing 1",
+  slack: "SendMail",
+  discord: "SendMail",
+  teams: "SendMail",
+  zoom: "SendMail",
+  whatsapp: "SendMail",
+  telegram: "SendMail",
+  signal: "SendMail",
+  skype: "SendMail",
+  notion: "Writing",
+  obsidian: "Writing",
+  WINWORD: "Writing",      // Microsoft Word
+  EXCEL: "Writing",        // Microsoft Excel
+  POWERPNT: "Writing",     // PowerPoint
+  ONENOTE: "Writing",
+  code: "GetTechy",        // VS Code
+  cursor: "GetTechy",
+  "idea64": "GetTechy",    // IntelliJ
+  "pycharm64": "GetTechy",
+  "webstorm64": "GetTechy",
+  "studio64": "GetTechy",  // Android Studio
+  figma: "GetArtsy",
+  photoshop: "GetArtsy",
+  illustrator: "GetArtsy",
+  blender: "GetArtsy",
+  gimp: "GetArtsy",
+  OUTLOOK: "SendMail",
+  thunderbird: "SendMail",
+  "Todo": "Alert",
+  taskmgr: "Processing",
+  "WindowsTerminal": "Processing",
+  powershell: "Processing",
+  cmd: "Processing",
+  explorer: "Searching",
+
   // --- Design -> GetArtsy ---
   Preview: "GetArtsy",
   Photos: "GetArtsy",
@@ -264,7 +307,7 @@ const APP_ANIMATION_MAP: Record<string, string> = {
   "Proton Mail": "SendMail",
   Tutanota: "SendMail",
 
-  // --- System/Utilities -> GetWizardy/Processing ---
+  // --- System/Utilities ---
   "Activity Monitor": "Processing",
   "System Settings": "GetWizardy",
   Settings: "GetWizardy",
@@ -300,45 +343,79 @@ let previousApp = "";
 let monitorInterval: NodeJS.Timeout | null = null;
 const CHECK_INTERVAL_MS = 2000;
 
+/**
+ * Normaliza el nombre de la app para mejorar el matching en el mapa.
+ * Intenta coincidencia exacta primero, luego case-insensitive,
+ * luego coincidencia parcial por si Windows devuelve variantes.
+ */
+function resolveAnimation(appName: string): string | undefined {
+  // 1. Coincidencia exacta (comportamiento original macOS intacto)
+  if (APP_ANIMATION_MAP[appName]) {
+    return APP_ANIMATION_MAP[appName];
+  }
+
+  // 2. Coincidencia case-insensitive (útil en Windows donde el nombre
+  //    puede venir en mayúsculas: "WINWORD", "EXCEL", etc.)
+  const lowerApp = appName.toLowerCase();
+  const caseInsensitiveKey = Object.keys(APP_ANIMATION_MAP).find(
+    (key) => key.toLowerCase() === lowerApp
+  );
+  if (caseInsensitiveKey) {
+    return APP_ANIMATION_MAP[caseInsensitiveKey];
+  }
+
+  // 3. Coincidencia parcial: el nombre del mapa está contenido en el
+  //    nombre detectado o viceversa (ej: "Google Chrome Helper" -> "Google Chrome")
+  const partialKey = Object.keys(APP_ANIMATION_MAP).find(
+    (key) =>
+      lowerApp.includes(key.toLowerCase()) ||
+      key.toLowerCase().includes(lowerApp)
+  );
+  if (partialKey) {
+    return APP_ANIMATION_MAP[partialKey];
+  }
+
+  return undefined;
+}
+
 export function startMonitor() {
   if (monitorInterval) return;
 
-  // Only run on macOS for now as per plan
-  if (process.platform !== "darwin") {
-    console.warn("External app monitoring is only supported on macOS for now.");
+  // ✅ Ahora soporta macOS, Windows y Linux
+  if (
+    process.platform !== "darwin" &&
+    process.platform !== "win32" &&
+    process.platform !== "linux"
+  ) {
+    console.warn("External app monitoring is not supported on this platform.");
     return;
   }
 
   monitorInterval = setInterval(async () => {
     const currentApp = await getActiveApp();
 
-    if (currentApp && currentApp !== previousApp) {
+    if (currentApp && currentApp !== "Unknown" && currentApp !== previousApp) {
       previousApp = currentApp;
 
       const win = getMainWindow();
       if (win && !win.isDestroyed()) {
-        // Always notify renderer of app change for context-aware tips
+        // Siempre notificar al renderer del cambio de app
         win.webContents.send(IpcMessages.ACTIVE_APP_UPDATE, currentApp);
       }
 
-      // Check if we have an animation for this app
-      // We also handle partial matches or case sensitivity if needed, but osascript usually returns proper Name
-
-      // Direct match check
-      let animationKey = APP_ANIMATION_MAP[currentApp];
-
-      // If no direct match, could check for partials (e.g. "Google Chrome Helper" -> "Google Chrome")
-      // But usually "name of active app" is the main name.
+      // Resolver animación con fallbacks para Windows/Linux
+      const animationKey = resolveAnimation(currentApp);
 
       if (animationKey) {
+        const win = getMainWindow();
         if (win && !win.isDestroyed()) {
           console.log(
-            `[Monitor] Detected ${currentApp}, triggering ${animationKey}`,
+            `[Monitor] Detected ${currentApp}, triggering ${animationKey}`
           );
           win.webContents.send(
             IpcMessages.EXTERNAL_APP_TRIGGER,
             animationKey,
-            currentApp,
+            currentApp
           );
         }
       }
