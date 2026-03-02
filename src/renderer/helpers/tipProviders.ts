@@ -8,6 +8,11 @@ import {
 } from "./keyboardShortcuts";
 import { clippyApi } from "../clippyApi";
 import type { SettingsState } from "../../sharedState";
+import {
+  HEALTH_TIPS,
+  DID_YOU_KNOW_TIPS,
+  PRODUCTIVITY_TIPS,
+} from "./data/tipContents";
 
 export type TipType =
   | "time"
@@ -24,49 +29,6 @@ export interface Tip {
   content: string;
   icon: string;
 }
-
-const HEALTH_TIPS = [
-  "👀 Regla 20-20-20: Cada 20 min, mira a 20 pies (6m) por 20 seg.",
-  "💧 ¡Hidrátate! Tu cerebro necesita agua para funcionar bien.",
-  "🧘‍♀️ Endereza la espalda. Tu 'yo' del futuro te lo agradecerá.",
-  "🚶‍♂️ Levántate y camina un poco. El sedentarismo mata la creatividad.",
-  "🌬️ Respira profundo 3 veces. Oxigena tu mente.",
-  "👁️ Parpadea. Cuando miramos pantallas, parpadeamos menos.",
-  "👐 Estira las muñecas y los dedos para prevenir el túnel carpiano.",
-  "🌑 Si es de noche, activa el modo oscuro o Night Shift.",
-];
-
-const DID_YOU_KNOW_TIPS = [
-  "🤓 El primer 'bug' de computadora fue una polilla real atrapada en un relé.",
-  "💾 El primer disco duro de 1GB pesaba más de 200kg (1980).",
-  "🖱️ El primer mouse estaba hecho de madera.",
-  "⌨️ QWERTY se diseñó para que las máquinas de escribir no se atascaran.",
-  "🌐 La primera webcam se usó para vigilar una cafetera en Cambridge.",
-  "🐧 Linux alimenta al 100% de las 500 supercomputadoras más rápidas.",
-  "🍎 El logo original de Apple mostraba a Isaac Newton bajo un árbol.",
-  "📧 El primer email fue enviado por Ray Tomlinson a sí mismo en 1971.",
-];
-
-/**
- * Productivity tips and motivational messages
- */
-const PRODUCTIVITY_TIPS = [
-  "💪 ¡Pequeños pasos llevan a grandes logros!",
-  "🎯 Enfócate en una tarea a la vez para máxima productividad.",
-  "☕ ¿Llevas mucho tiempo? Toma un descanso de 5 minutos.",
-  "🌟 ¡Lo estás haciendo genial! Sigue así.",
-  "📝 Escribe tus tareas del día para mantenerte organizado.",
-  "🧘 Recuerda estirar y relajar los hombros.",
-  "💡 Prueba la técnica Pomodoro: 25 min trabajo, 5 min descanso.",
-  "🌈 ¡Un día productivo comienza con una mente positiva!",
-  "🔋 Mantén tu espacio de trabajo ordenado = mente ordenada.",
-  "🎵 La música instrumental puede ayudar a concentrarse.",
-  "📱 Silencia las notificaciones durante tareas importantes.",
-  "🌿 Las plantas en el escritorio mejoran el ambiente.",
-  "💤 Dormir bien = trabajar mejor. ¡No lo olvides!",
-  "🎮 ¡Date una recompensa después de completar una tarea difícil!",
-  "📚 Aprender algo nuevo cada día mantiene la mente activa.",
-];
 
 /**
  * Get greeting based on current time of day
@@ -313,7 +275,6 @@ export async function getRandomTip(
     return null;
   }
 
-  // If specific app is active and supports shortcuts, increase shortcut probability
   let randomType: TipType;
 
   // Simple heuristic: 40% chance to show shortcut if app context is available
