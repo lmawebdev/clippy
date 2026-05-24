@@ -44,6 +44,22 @@ export const BUILT_IN_MODELS: Model[] = [
       "Gemma 2 is Google's latest open model, built for responsible AI development from the same research and technology used to create the Gemini models.",
   },
   {
+    name: "Gemma 4 (E2B)",
+    company: "Google",
+    size: 3100,
+    url: "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf",
+    description:
+      "Gemma 4 E2B is a lightweight, multimodal model from Google DeepMind, specifically optimized for edge devices and local execution, supporting text, image, and audio input.",
+  },
+  {
+    name: "Gemma 4 (E4B)",
+    company: "Google",
+    size: 5000,
+    url: "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf",
+    description:
+      "Gemma 4 E4B is a highly efficient, multimodal model from Google DeepMind designed for local execution with 128K context window and native support for function-calling.",
+  },
+  {
     name: "Phi-4 Mini (3.8B)",
     company: "Microsoft",
     size: 2490,

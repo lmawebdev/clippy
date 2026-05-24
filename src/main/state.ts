@@ -56,6 +56,10 @@ export class StateManager {
       settings.allowMoveClippy = true;
     }
 
+    if (settings.clipboardCopilotEnabled === undefined) {
+      settings.clipboardCopilotEnabled = true;
+    }
+
     this.store.set("settings", settings);
   }
 

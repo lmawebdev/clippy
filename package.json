@@ -73,6 +73,6 @@
   },
   "overrides": {
     "@electron/windows-sign": "2.0.2",
-    "node-llama-cpp": "^3.15.1"
+    "node-llama-cpp": "^3.18.1"
   }
 }

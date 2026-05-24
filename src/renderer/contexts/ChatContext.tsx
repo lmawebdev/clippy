@@ -16,6 +16,7 @@ import { ChatRecord, MessageRecord } from "../../types/interfaces";
 import { useDebugState } from "./DebugContext";
 import { ANIMATION_KEYS_BRACKETS } from "../clippy-animation-helpers";
 import { ErrorLoadModelMessageContent } from "../components/ErrorLoadModelMessageContent";
+import { ExternalLLMService, ExternalApiProvider } from "../api/external-llm";
 
 import type {
   LanguageModelPrompt,
@@ -52,6 +53,9 @@ export type ChatContextType = {
   deleteAllChats: () => Promise<void>;
   loadModel: (initialPrompts?: LanguageModelPrompt[]) => Promise<void>;
   unloadModel: () => Promise<void>;
+  sendMessage: (content: string) => Promise<void>;
+  streamingMessageContent: string;
+  abortMessage: () => void;
 };
 
 export const ChatContext = createContext<ChatContextType | undefined>(
@@ -77,6 +81,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [isChatWindowOpen, setIsChatWindowOpen] = useState(false);
   const [hasPerformedStartupCheck, setHasPerformedStartupCheck] =
     useState(false);
+
+  const [streamingMessageContent, setStreamingMessageContent] = useState<string>("");
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastRequestUUID = useRef<string>(crypto.randomUUID());
 
   const getSystemPrompt = useCallback(() => {
     return settings.systemPrompt.replace(
@@ -290,6 +298,181 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const abortMessage = useCallback(() => {
+    electronAi.abortRequest(lastRequestUUID.current);
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setStatus("idle");
+    setStreamingMessageContent("");
+  }, [setStatus]);
+
+  const sendMessage = useCallback(async (message: string) => {
+    if (status !== "idle") {
+      return;
+    }
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      content: message,
+      sender: "user",
+      createdAt: Date.now(),
+    };
+
+    await addMessage(userMessage);
+    setStreamingMessageContent("");
+    setStatus("thinking");
+
+    try {
+      if (settings.useExternalApi) {
+        // --- External API Mode ---
+        if (!settings.externalApiKey) {
+          throw new Error("Missing API Key");
+        }
+
+        // Prepare messages
+        const apiMessages = messages.map((m) => ({
+          role:
+            m.sender === "clippy" ? ("assistant" as const) : ("user" as const),
+          content: m.content,
+        }));
+        // Add the new user message
+        apiMessages.push({ role: "user", content: message });
+
+        let fullContent = "";
+        let filteredContent = "";
+        let hasSetAnimationKey = false;
+
+        let systemPrompt = settings.systemPrompt;
+
+        // Dynamic injection of animation list
+        if (systemPrompt.includes("[LIST OF ANIMATIONS]")) {
+          systemPrompt = systemPrompt.replace(
+            "[LIST OF ANIMATIONS]",
+            ANIMATION_KEYS_BRACKETS.join(", "),
+          );
+        } else {
+          systemPrompt += `\n\nIMPORTANT: You have access to the following animations: ${ANIMATION_KEYS_BRACKETS.join(", ")}. At the end of your response, you MUST include exactly one tag from this list, e.g. "Hello! [Greeting]".`;
+        }
+
+        if (!systemPrompt.includes("At the end of your response")) {
+          systemPrompt += `\n\nREMINDER: Put the animation tag (e.g. [Greeting]) at the VERY END of your message.`;
+        }
+
+        console.log("Final System Prompt for External API:", systemPrompt);
+
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
+        const stream = ExternalLLMService.streamResponse(
+          settings.externalApiProvider as ExternalApiProvider,
+          settings.externalApiKey,
+          settings.externalModelId || "gpt-4o",
+          apiMessages,
+          systemPrompt,
+          controller.signal,
+        );
+
+        for await (const chunk of stream) {
+          if (fullContent === "") {
+            setStatus("responding");
+          }
+
+          if (!hasSetAnimationKey) {
+            const { text, animationKey } = filterMessageContent(
+              fullContent + chunk,
+            );
+
+            filteredContent = text;
+            fullContent = fullContent + chunk;
+
+            if (animationKey) {
+              setAnimationKey(animationKey);
+              hasSetAnimationKey = true;
+            }
+          } else {
+            filteredContent += chunk;
+            fullContent += chunk;
+          }
+
+          setStreamingMessageContent(filteredContent);
+        }
+
+        const assistantMessage: Message = {
+          id: crypto.randomUUID(),
+          content: filteredContent,
+          sender: "clippy",
+          createdAt: Date.now(),
+        };
+
+        addMessage(assistantMessage);
+      } else {
+        // --- Local Model Mode ---
+        const requestUUID = crypto.randomUUID();
+        lastRequestUUID.current = requestUUID;
+
+        const response = await window.electronAi.promptStreaming(message, {
+          requestUUID,
+        });
+
+        let fullContent = "";
+        let filteredContent = "";
+        let hasSetAnimationKey = false;
+
+        for await (const chunk of response) {
+          if (fullContent === "") {
+            setStatus("responding");
+          }
+
+          if (!hasSetAnimationKey) {
+            const { text, animationKey } = filterMessageContent(
+              fullContent + chunk,
+            );
+
+            filteredContent = text;
+            fullContent = fullContent + chunk;
+
+            if (animationKey) {
+              setAnimationKey(animationKey);
+              hasSetAnimationKey = true;
+            }
+          } else {
+            filteredContent += chunk;
+          }
+
+          setStreamingMessageContent(filteredContent);
+        }
+
+        const assistantMessage: Message = {
+          id: crypto.randomUUID(),
+          content: filteredContent,
+          sender: "clippy",
+          createdAt: Date.now(),
+        };
+
+        addMessage(assistantMessage);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setStreamingMessageContent("");
+      setStatus("idle");
+      abortControllerRef.current = null;
+    }
+  }, [
+    status,
+    messages,
+    addMessage,
+    settings.useExternalApi,
+    settings.externalApiKey,
+    settings.externalApiProvider,
+    settings.externalModelId,
+    settings.systemPrompt,
+    setAnimationKey,
+    setStatus,
+  ]);
+
   const prevUseExternalApi = useState(settings.useExternalApi); // Capture initial state
   // We use a ref to track the previous value across renders
   const prevUseExternalRef = useRef(settings.useExternalApi);
@@ -476,6 +659,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setIsChatWindowOpen,
     loadModel,
     unloadModel,
+    sendMessage,
+    streamingMessageContent,
+    abortMessage,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
@@ -522,4 +708,36 @@ function messagesToInitialPrompts(messages: Message[]): LanguageModelPrompt[] {
     type: "text" as LanguageModelPromptType,
     content: message.content || "",
   }));
+}
+
+function filterMessageContent(content: string): {
+  text: string;
+  animationKey: string;
+} {
+  let text = content;
+  let animationKey = "";
+
+  // Regex to find [TagName] anywhere in the string
+  const regex = /\[([a-zA-Z0-9\s_]+)\]/g;
+
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    const possibleKey = match[1];
+    if (ANIMATION_KEYS_BRACKETS.includes(`[${possibleKey}]`)) {
+      animationKey = possibleKey; // Take the latest one found
+    }
+  }
+
+  if (animationKey) {
+    // Remove tag and potential trailing punctuation/whitespace
+    text = text.replace(
+      new RegExp(`\\s*\\[${animationKey}\\]\\s*[\\.\\!\\?]*$`, "g"),
+      "",
+    );
+    // Safety: remove it if it appears elsewhere too
+    text = text.replace(new RegExp(`\\[${animationKey}\\]`, "g"), "");
+    text = text.trim();
+  }
+
+  return { text, animationKey };
 }

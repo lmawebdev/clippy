@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { clippyApi, ClipboardItem } from "../clippyApi";
 import { useWindow } from "../contexts/WindowContext";
+import { useChat } from "../contexts/ChatContext";
+import { useBubbleView } from "../contexts/BubbleViewContext";
 
 interface ClipboardManagerProps {
   onClose: () => void;
@@ -29,8 +31,28 @@ export const ClipboardManager: React.FC<ClipboardManagerProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [listWidth, setListWidth] = useState(180);
   const { currentWindow } = useWindow();
+  const { sendMessage } = useChat();
+  const { setCurrentView } = useBubbleView();
   const containerRef = useRef<HTMLDivElement>(null);
   const isResizingRef = useRef(false);
+
+  const handleAiAction = useCallback(async (actionType: "summarize" | "translate" | "explain" | "fix", item: ClipboardItem) => {
+    if (item.type !== "text") return;
+
+    let prompt = "";
+    if (actionType === "summarize") {
+      prompt = `Por favor, resume este texto del portapapeles de forma clara y concisa:\n\n"${item.content}"`;
+    } else if (actionType === "translate") {
+      prompt = `Por favor, traduce el siguiente texto del portapapeles al español:\n\n"${item.content}"`;
+    } else if (actionType === "explain") {
+      prompt = `Por favor, analiza y explica detalladamente este fragmento de código, identificando si tiene algún error o cómo mejorarlo:\n\n\`\`\`\n${item.content}\n\`\`\``;
+    } else if (actionType === "fix") {
+      prompt = `Por favor, corrige la ortografía, gramática y mejora el estilo de redacción de este texto:\n\n"${item.content}"`;
+    }
+
+    setCurrentView("chat");
+    sendMessage(prompt);
+  }, [sendMessage, setCurrentView]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizingRef.current || !containerRef.current) return;
@@ -297,6 +319,33 @@ export const ClipboardManager: React.FC<ClipboardManagerProps> = ({
                 <>
                   <div style={styles.textPreviewBox}>
                     <pre style={styles.textPre}>{selectedItem.content}</pre>
+                  </div>
+                  <div style={styles.aiActionsTitle}>✨ AI Assistant Actions</div>
+                  <div style={styles.aiActionsContainer}>
+                    <button
+                      onClick={() => handleAiAction("summarize", selectedItem)}
+                      title="Summarize text"
+                      style={styles.aiBtn}>
+                      ✨ Summarize
+                    </button>
+                    <button
+                      onClick={() => handleAiAction("translate", selectedItem)}
+                      title="Translate to Spanish"
+                      style={styles.aiBtn}>
+                      🌐 Translate
+                    </button>
+                    <button
+                      onClick={() => handleAiAction("explain", selectedItem)}
+                      title="Explain Code & Find Bugs"
+                      style={styles.aiBtn}>
+                      📝 Explain Code
+                    </button>
+                    <button
+                      onClick={() => handleAiAction("fix", selectedItem)}
+                      title="Fix Spelling & Grammar"
+                      style={styles.aiBtn}>
+                      ✍️ Fix Grammar
+                    </button>
                   </div>
                   <div style={styles.detailActions}>
                     <button
@@ -638,6 +687,29 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     gap: "4px",
+  },
+  aiActionsTitle: {
+    fontWeight: "bold",
+    color: "#000",
+    marginTop: "4px",
+    marginBottom: "2px",
+    fontSize: "10px",
+  },
+  aiActionsContainer: {
+    display: "flex",
+    gap: "4px",
+    flexWrap: "wrap",
+    padding: "4px",
+    background: "#d0d0d0",
+    border: "1px inset #fff",
+    marginBottom: "4px",
+    borderRadius: "2px",
+  },
+  aiBtn: {
+    padding: "2px 6px",
+    fontSize: "10px",
+    cursor: "pointer",
+    flex: "1 1 auto",
   },
   statusBar: {
     display: "flex",

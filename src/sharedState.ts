@@ -44,6 +44,7 @@ export interface SettingsState {
   // Clipboard manager settings
   clipboardRetentionPolicy?: "forever" | "7d" | "30d" | "6m" | "1y";
   clipboardSaveImages?: boolean;
+  clipboardCopilotEnabled?: boolean;
   // External API settings
   useExternalApi?: boolean;
   externalApiProvider?:
@@ -105,6 +106,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   weatherLongitude: -3.7038,
   // Model settings
   modelAutoLoad: true,
+  clipboardCopilotEnabled: true,
   // External API defaults
   useExternalApi: false,
   externalApiProvider: "openai",
