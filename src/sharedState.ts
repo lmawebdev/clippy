@@ -56,6 +56,36 @@ export interface SettingsState {
     | "grok";
   externalApiKey?: string;
   externalModelId?: string;
+  // Tamagotchi Mode settings
+  tamagotchiEnabled: boolean;
+  tamagotchiHappiness: number;
+  tamagotchiEnergy: number;
+  tamagotchiFocus: number;
+  tamagotchiHunger: number;
+  tamagotchiHealth: number;
+  tamagotchiLastUpdate: number;
+  // Objectives settings
+  objectives: Objective[];
+}
+
+export type ObjectiveCategory = "code" | "reading" | "entertainment" | "other";
+export type ObjectiveFrequency = "daily" | "weekly" | "monthly";
+
+export interface Objective {
+  id: string;
+  title: string;
+  category: ObjectiveCategory;
+  frequency?: ObjectiveFrequency;
+  targetMinutes: number;
+  notifyIntervalMinutes: number;
+  activeDays: number[]; // 0 = Sunday, 1 = Monday, etc.
+  createdAt: number;
+  paused: boolean;
+  progressTodayMinutes: number;
+  lastTrackedTimestamp: number;
+  lastTrackedPeriod?: string;
+  history: Record<string, "completed" | "failed">; // YYYY-MM-DD or week/month keys -> status
+  streak: number;
 }
 
 export interface SharedState {
@@ -112,6 +142,16 @@ export const DEFAULT_SETTINGS: SettingsState = {
   externalApiProvider: "openai",
   externalApiKey: "",
   externalModelId: "gpt-4o",
+  // Tamagotchi defaults
+  tamagotchiEnabled: true,
+  tamagotchiHappiness: 80,
+  tamagotchiEnergy: 80,
+  tamagotchiFocus: 50,
+  tamagotchiHunger: 80,
+  tamagotchiHealth: 80,
+  tamagotchiLastUpdate: Date.now(),
+  // Objectives defaults
+  objectives: [],
 };
 
 export const EMPTY_SHARED_STATE: SharedState = {

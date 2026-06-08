@@ -10,10 +10,12 @@ import { SettingsAbout } from "./SettingsAbout";
 import { SettingsParameters } from "./SettingsParameters";
 import { SettingsTips } from "./SettingsTips";
 import { SettingsClipboard } from "./SettingsClipboard";
+import { SettingsObjectives } from "./SettingsObjectives";
 
 export type SettingsTab =
   | "appearance"
   | "tips"
+  | "objectives"
   | "model"
   | "parameters"
   | "advanced"
@@ -41,6 +43,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   const tabs = [
     { label: "Appearance", key: "appearance", content: <SettingsAppearance /> },
     { label: "Tips", key: "tips", content: <SettingsTips /> },
+    { label: "Objectives", key: "objectives", content: <SettingsObjectives /> },
     { label: "Model", key: "model", content: <SettingsModel /> },
     { label: "Parameters", key: "parameters", content: <SettingsParameters /> },
     { label: "Clipboard", key: "clipboard", content: <SettingsClipboard /> },
@@ -77,6 +80,7 @@ function bubbleViewToSettingsTab(view: BubbleView): SettingsTab {
   const settingsTabs = [
     "appearance",
     "tips",
+    "objectives",
     "model",
     "parameters",
     "advanced",

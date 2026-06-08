@@ -21,6 +21,7 @@ export const SettingsAppearance: React.FC = () => {
       clippyAlwaysOnTop: DEFAULT_SETTINGS.clippyAlwaysOnTop,
       chatAlwaysOnTop: DEFAULT_SETTINGS.chatAlwaysOnTop,
       alwaysOpenChat: DEFAULT_SETTINGS.alwaysOpenChat,
+      tamagotchiEnabled: DEFAULT_SETTINGS.tamagotchiEnabled,
     };
 
     for (const key in defaultAppareanceSettings) {
@@ -57,6 +58,14 @@ export const SettingsAppearance: React.FC = () => {
           checked={settings.alwaysOpenChat}
           onChange={(checked) => {
             clippyApi.setState("settings.alwaysOpenChat", checked);
+          }}
+        />
+        <Checkbox
+          id="tamagotchiEnabled"
+          label="Enable Tamagotchi mode"
+          checked={settings.tamagotchiEnabled ?? true}
+          onChange={(checked) => {
+            clippyApi.setState("settings.tamagotchiEnabled", checked);
           }}
         />
       </fieldset>

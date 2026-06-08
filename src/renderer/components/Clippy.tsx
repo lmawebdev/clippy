@@ -11,6 +11,8 @@ import { log } from "../logging";
 import { useDebugState } from "../contexts/DebugContext";
 import { useSharedState } from "../contexts/SharedStateContext";
 import { SpeechBubble } from "./SpeechBubble";
+import { useTamagotchi } from "../helpers/useTamagotchi";
+import { useObjectives } from "../helpers/useObjectives";
 
 const LOOK_UP_ANIMATION = "LookUp";
 const IDEA_ANIMATION = "GetAttention";
@@ -27,12 +29,18 @@ export function Clippy() {
   const [animation, setAnimation] = useState<Animation>(EMPTY_ANIMATION);
   const [isBubbleVisible, setIsBubbleVisible] = useState(false);
 
+  // Tamagotchi hook integration
+  const { happiness, energy, focus, hunger, health, feed, pet, heal, recordKeyPress, wakeUp, isLowState } = useTamagotchi();
+
+  // Objectives hook – handles progress tracking and bubble notifications
+  useObjectives();
+
   // Refs for scheduler management
   const timeoutRef = useRef<number | undefined>(undefined);
   const lastIdleAnimationRef = useRef<Animation | undefined>(undefined);
 
   // Track if we are currently handling a special activity to prevent overlaps
-  // "idle-loop" | "click-reaction" | "bubble-interaction" | "external-command"
+  // "idle-loop" | "click-reaction" | "bubble-interaction" | "external-command" | "low-state"
   const activityRef = useRef<string>("idle-loop");
 
   // Clear any pending timeout
@@ -127,22 +135,79 @@ export function Clippy() {
     runBurst();
   }, [playIdleBurst, setIdleFrame, isBubbleVisible]);
 
+  // Sleep loop when energy is low
+  useEffect(() => {
+    if (energy < 20 && !isBubbleVisible) {
+      clearScheduler();
+      activityRef.current = "sleeping";
+      
+      const playSleepLoop = () => {
+        if (activityRef.current !== "sleeping") return;
+        playOneAnimation(ANIMATIONS.IdleSnooze, () => {
+          playSleepLoop();
+        });
+      };
+      
+      playSleepLoop();
+    }
+  }, [energy, isBubbleVisible, playOneAnimation, clearScheduler]);
+
+  // Low state animation loop (when any bar is < 20% and not sleeping)
+  useEffect(() => {
+    if (isLowState && energy >= 20 && !isBubbleVisible) {
+      clearScheduler();
+      activityRef.current = "low-state";
+
+      const playLowStateLoop = () => {
+        if (activityRef.current !== "low-state") return;
+        playOneAnimation(ANIMATIONS.Alert, () => {
+          if (activityRef.current !== "low-state") return;
+          timeoutRef.current = window.setTimeout(playLowStateLoop, 4000);
+        });
+      };
+
+      playLowStateLoop();
+    }
+  }, [isLowState, energy, isBubbleVisible, playOneAnimation, clearScheduler]);
+
   // --- Interaction Handlers ---
 
   // Mode state for speech bubble
-  const [speechBubbleMode, setSpeechBubbleMode] = useState<"tips" | "stats">(
+  const [speechBubbleMode, setSpeechBubbleMode] = useState<"tips" | "stats" | "tamagotchi" | "objectives">(
     "tips",
   );
 
   // Handle "Click" on Clippy
   const handleClick = useCallback(() => {
     // Toggle mode
-    setSpeechBubbleMode((prev) => (prev === "tips" ? "stats" : "tips"));
+    const hasObjectives = (settings.objectives ?? []).filter((o) => !o.paused).length > 0;
+    setSpeechBubbleMode((prev) => {
+      if (prev === "tips") return "stats";
+      if (prev === "stats") return "tamagotchi";
+      if (prev === "tamagotchi") return hasObjectives ? "objectives" : "tips";
+      return "tips";
+    });
 
     if (isBubbleVisible) return; // Don't interrupt bubble animation if visible
 
     // Interrupt current activity for animation
     clearScheduler();
+
+    // Check if sleeping (energy < 20) and wake him up
+    if (energy < 20) {
+      activityRef.current = "click-reaction";
+      wakeUp();
+      playOneAnimation(ANIMATIONS.Alert, () => {
+        setIdleFrame();
+        const waitTime = 2000;
+        timeoutRef.current = window.setTimeout(() => {
+          startIdleLoop();
+        }, waitTime);
+      });
+      return;
+    }
+
+    pet();
     activityRef.current = "click-reaction";
 
     // "hace una animación random"
@@ -166,7 +231,30 @@ export function Clippy() {
     playOneAnimation,
     setIdleFrame,
     startIdleLoop,
+    energy,
+    wakeUp,
+    pet,
+    settings.objectives,
   ]);
+
+  // Handle Drag & Drop to feed Clippy
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      clearScheduler();
+      activityRef.current = "eating";
+
+      playOneAnimation(ANIMATIONS.Processing, () => {
+        feed();
+        setIdleFrame();
+        timeoutRef.current = window.setTimeout(() => {
+          activityRef.current = "idle-loop";
+          startIdleLoop();
+        }, 2000);
+      });
+    },
+    [clearScheduler, playOneAnimation, feed, setIdleFrame, startIdleLoop]
+  );
 
   // Handle Bubble Visibility
   const handleBubbleVisibilityChange = useCallback(
@@ -194,7 +282,7 @@ export function Clippy() {
         // Bubble disappeared, visible = false
 
         // If we were in stats mode, reset to tips so next click opens stats again
-        if (speechBubbleMode === "stats") {
+        if (speechBubbleMode === "stats" || speechBubbleMode === "tamagotchi" || speechBubbleMode === "objectives") {
           setSpeechBubbleMode("tips");
         }
 
@@ -227,32 +315,18 @@ export function Clippy() {
   useEffect(() => {
     // Only start if we are in a state that should animate (e.g. idle or welcome)
     // And not if bubble is already visible for some reason
-    if ((status === "idle" || status === "welcome") && !isBubbleVisible) {
+    if ((status === "idle" || status === "welcome") && !isBubbleVisible && energy >= 20) {
       startIdleLoop();
     }
 
     return () => clearScheduler();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount to kick off the loop.
-  // Note: if status changes later, we might need to react, but 'status' usage in 'runBurst' via closures?
-  // No, 'runBurst' is defined in 'startIdleLoop' which is created once?
-  // Wait, 'startIdleLoop' depends on 'isBubbleVisible'.
-  // If 'isBubbleVisible' changes, 'startIdleLoop' changes.
-  // BUT the 'runBurst' inside the closure of the *running* timeout might be stale?
-  // 'runBurst' calls 'playIdleBurst' calls 'playOneAnimation' ...
-  // The recursion 'runBurst' -> 'playIdleBurst' -> 'playNext' -> 'playOneAnimation' -> 'playNext'.
-  // We need to be careful about stale closures.
-
-  // Actually, 'activityRef' protects us.
-  // If bubble becomes visible, 'handleBubbleVisibilityChange' sets 'activityRef' to 'bubble-interaction'.
-  // The running loop checks 'activityRef.current !== "idle-loop"' and aborts.
-  // So stale closures are fine as long as they check the Ref!
-  // And they do check 'activityRef.current'. Excellent.
 
   // Watch for external status changes or animation overrides (e.g. from context/Omnibox)
   useEffect(() => {
     // If we are handling a bubble, ignore external 'status' changes unless critical?
-    if (isBubbleVisible) return;
+    if (isBubbleVisible || energy < 20) return;
 
     // If animationKey is set explicitly (e.g. "Congratulate"), play it.
     if (
@@ -284,42 +358,33 @@ export function Clippy() {
     clearScheduler,
     setIdleFrame,
     startIdleLoop,
+    energy,
   ]);
 
   // Handle Global Keyboard Events
   useEffect(() => {
     const handleGlobalKeyDown = () => {
-      // If bubble is visible, don't interrupt?
-      // User didn't specify, but usually bubble interaction is higher priority (user reading tips).
-      // If we interrupt with writing, it might be annoying.
-      if (isBubbleVisible) return;
+      // Record keypress for Tamagotchi stats
+      recordKeyPress();
 
-      // If we are already handling a click reaction, maybe wait?
-      // But typing usually implies active user intent.
-      // Let's override everything except bubble.
+      // If bubble is visible, don't interrupt?
+      if (isBubbleVisible || energy < 20) return;
 
       clearScheduler();
       activityRef.current = "writing";
 
-      // Set animation to Writing immediately
-      // Note: Writing animation loop? We should check if it loops.
-      // Usually "Writing" is a looping animation or long enough.
-      // If it's short, it might freeze at end frame?
-      // We'll reset it or trust it loops.
-      // For now, set it.
       if (ANIMATIONS["Writing"]) {
         setAnimation(ANIMATIONS["Writing"]);
       }
 
       // Reset the "stop writing" timer
-      // "si en 2 segundos no detecta tecleo, que vuelva a su estado inicial"
       if (timeoutRef.current) {
         window.clearTimeout(timeoutRef.current);
       }
 
       timeoutRef.current = window.setTimeout(() => {
         // Stop writing
-        setIdleFrame(); // "estado inicial" usually means default/idle
+        setIdleFrame();
         activityRef.current = "idle-loop";
         startIdleLoop();
       }, 2000);
@@ -330,13 +395,13 @@ export function Clippy() {
     return () => {
       window.clippy.offGlobalKeyDown();
     };
-  }, [isBubbleVisible, clearScheduler, setIdleFrame, startIdleLoop]);
+  }, [isBubbleVisible, clearScheduler, setIdleFrame, startIdleLoop, energy, recordKeyPress]);
 
   // Handle External App Triggers
   useEffect(() => {
     const handleExternalAppTrigger = (key: string, _appName: string) => {
       // If bubble is visible, don't interrupt
-      if (isBubbleVisible) return;
+      if (isBubbleVisible || energy < 20) return;
 
       // Check if animation exists
       if (!ANIMATIONS[key]) return;
@@ -368,38 +433,31 @@ export function Clippy() {
     playOneAnimation,
     setIdleFrame,
     startIdleLoop,
+    energy,
   ]);
 
   // --- Mouse Events for Click-Through ---
   useEffect(() => {
-    // If dragging is enabled (allowMoveClippy=true), we want to CAPTURE events by default (ignore=false).
-    // If dragging is disabled (allowMoveClippy=false), we want to IGNORE events by default (click-through=true).
     const ignore = !settings.allowMoveClippy;
     window.clippy.setIgnoreMouseEvents(ignore, { forward: true });
   }, [settings.allowMoveClippy]);
 
   const handleMouseEnter = useCallback(() => {
-    // When mouse enters Clippy or Drag Area, we always want to interact with Clippy
-    // (for animations, right click, etc).
-    // BUT if dragging is disabled, the 'app-drag' div won't be rendered (see below),
-    // so this only fires for the Image or Bubble.
     window.clippy.setIgnoreMouseEvents(false);
   }, []);
 
-  // When mouse leaves, revert to default state based on settings
   const handleMouseLeave = useCallback(() => {
-    // If dragging is disabled, revert to click-through (ignore=true).
-    // If dragging is enabled, revert to capture (ignore=false).
     const ignore = !settings.allowMoveClippy;
     window.clippy.setIgnoreMouseEvents(ignore, { forward: true });
   }, [settings.allowMoveClippy]);
 
-  // Only show drag handle if moving is allowed
-  // Ensure default is true if undefined to match main process logic
   const isMoveAllowed = settings.allowMoveClippy ?? true;
 
   return (
-    <div>
+    <div
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={handleDrop}
+    >
       <SpeechBubble
         onVisibilityChange={handleBubbleVisibilityChange}
         onMouseEnter={handleMouseEnter}

@@ -56,6 +56,8 @@ export type ChatContextType = {
   sendMessage: (content: string) => Promise<void>;
   streamingMessageContent: string;
   abortMessage: () => void;
+  bubbleMessage: { text: string; mode: string; duration: number } | null;
+  showBubbleMessage: (text: string, mode?: string, duration?: number) => void;
 };
 
 export const ChatContext = createContext<ChatContextType | undefined>(
@@ -638,6 +640,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const [bubbleMessage, setBubbleMessage] = useState<{ text: string; mode: string; duration: number } | null>(null);
+
+  const showBubbleMessage = useCallback((text: string, mode = "custom", duration = 8) => {
+    setBubbleMessage({ text, mode, duration });
+    // Reset after duration + animation time to avoid stale reference if same message triggered
+    setTimeout(() => {
+      setBubbleMessage(prev => prev?.text === text ? null : prev);
+    }, (duration + 1) * 1000);
+  }, []);
+
   const value = {
     chatRecords,
     currentChatRecord,
@@ -662,6 +674,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     sendMessage,
     streamingMessageContent,
     abortMessage,
+    bubbleMessage,
+    showBubbleMessage,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

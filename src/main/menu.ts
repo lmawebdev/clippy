@@ -41,11 +41,56 @@ export function popupAppMenu(options: Electron.PopupOptions = {}) {
   getMainAppMenu().popup(options);
 }
 
+function feedTamagotchi() {
+  const store = getStateManager().store;
+  const settings = store.get("settings");
+  const happiness = settings.tamagotchiHappiness ?? 80;
+  const energy = settings.tamagotchiEnergy ?? 80;
+  const focus = settings.tamagotchiFocus ?? 50;
+  const hunger = settings.tamagotchiHunger ?? 80;
+  const health = settings.tamagotchiHealth ?? 80;
+
+  store.set("settings.tamagotchiHappiness", Math.max(0, Math.min(100, happiness + 5)));
+  store.set("settings.tamagotchiEnergy", Math.max(0, Math.min(100, energy + 5)));
+  store.set("settings.tamagotchiHunger", Math.max(0, Math.min(100, hunger + 30)));
+  store.set("settings.tamagotchiLastUpdate", Date.now());
+}
+
+function petTamagotchi() {
+  const store = getStateManager().store;
+  const settings = store.get("settings");
+  const happiness = settings.tamagotchiHappiness ?? 80;
+
+  store.set("settings.tamagotchiHappiness", Math.max(0, Math.min(100, happiness + 15)));
+  store.set("settings.tamagotchiLastUpdate", Date.now());
+}
+
+function healTamagotchi() {
+  const store = getStateManager().store;
+  const settings = store.get("settings");
+  const health = settings.tamagotchiHealth ?? 80;
+
+  store.set("settings.tamagotchiHealth", Math.max(0, Math.min(100, health + 25)));
+  store.set("settings.tamagotchiLastUpdate", Date.now());
+}
+
+function wakeUpTamagotchi() {
+  const store = getStateManager().store;
+  const settings = store.get("settings");
+  const happiness = settings.tamagotchiHappiness ?? 80;
+  const energy = settings.tamagotchiEnergy ?? 80;
+
+  store.set("settings.tamagotchiHappiness", Math.max(0, Math.min(100, happiness + 5)));
+  store.set("settings.tamagotchiEnergy", Math.max(0, Math.min(100, Math.max(25, energy))));
+  store.set("settings.tamagotchiLastUpdate", Date.now());
+}
+
 /**
  * Setup the application menu
  */
 export function getMainAppMenu(): Menu {
   const isMac = process.platform === "darwin";
+  const settings = getStateManager().store.get("settings");
 
   const template: MenuItemConstructorOptions[] = [
     ...(isMac
@@ -63,6 +108,32 @@ export function getMainAppMenu(): Menu {
     },
     { role: "help", submenu: getHelpMenu() },
   ];
+
+  if (settings.tamagotchiEnabled) {
+    template.push({ type: "separator" });
+    template.push({
+      label: "👾 Tamagotchi",
+      submenu: [
+        {
+          label: "🍎 Alimentar (Comer)",
+          click: () => feedTamagotchi(),
+        },
+        {
+          label: "❤️ Acariciar (Amor)",
+          click: () => petTamagotchi(),
+        },
+        {
+          label: "💊 Curar (Salud)",
+          click: () => healTamagotchi(),
+        },
+        {
+          label: "⏰ Despertar",
+          click: () => wakeUpTamagotchi(),
+        },
+      ],
+    });
+  }
+
   const menu = Menu.buildFromTemplate(template);
 
   // Insert app menu options
@@ -239,6 +310,10 @@ function getSettingsMenuItem(): MenuItem {
       {
         label: "Tips",
         click: () => openView("settings-tips"),
+      },
+      {
+        label: "Objectives",
+        click: () => openView("settings-objectives"),
       },
       {
         label: "Model",
