@@ -1,5 +1,13 @@
 
-export type ExternalApiProvider = "openai" | "anthropic" | "gemini" | "perplexity" | "openrouter" | "grok";
+export type ExternalApiProvider =
+  | "openai"
+  | "anthropic"
+  | "gemini"
+  | "perplexity"
+  | "openrouter"
+  | "grok"
+  | "opencode"
+  | "custom";
 
 export interface ExternalLLMMessage {
   role: "user" | "assistant" | "system";
@@ -17,6 +25,12 @@ export class ExternalLLMService {
         return "https://openrouter.ai/api/v1/chat/completions";
       case "grok":
         return "https://api.x.ai/v1/chat/completions";
+      case "opencode":
+        // OpenCode Zen - OpenAI compatible endpoint
+        return "https://opencode.ai/zen/v1/chat/completions";
+      case "custom":
+        // Custom providers use the base URL configured in settings
+        return "";
       case "gemini":
         // Gemini uses a different URL structure, handled separately if not using OpenAI compat
         return "https://generativelanguage.googleapis.com/v1beta/models"; 
@@ -33,7 +47,8 @@ export class ExternalLLMService {
     modelId: string,
     messages: ExternalLLMMessage[],
     systemPrompt: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    customBaseUrl?: string
   ): AsyncGenerator<string, void, unknown> {
     if (!apiKey) {
       throw new Error("API Key is required");
@@ -49,8 +64,14 @@ export class ExternalLLMService {
       yield* this.streamAnthropic(apiKey, modelId, messages, systemPrompt, signal);
     } else if (provider === "gemini") {
       yield* this.streamGemini(apiKey, modelId, messages, systemPrompt, signal);
+    } else if (provider === "custom") {
+      // Custom OpenAI-compatible provider using the configured base URL
+      if (!customBaseUrl) {
+        throw new Error("Custom provider requires a Base URL. Please check settings.");
+      }
+      yield* this.streamOpenAICompatible(customBaseUrl, apiKey, modelId, finalMessages, signal);
     } else {
-      // OpenAI Compatible (OpenAI, Perplexity, OpenRouter, Grok)
+      // OpenAI Compatible (OpenAI, Perplexity, OpenRouter, Grok, OpenCode)
       yield* this.streamOpenAICompatible(this.getBaseUrl(provider), apiKey, modelId, finalMessages, signal);
     }
   }

@@ -53,9 +53,12 @@ export interface SettingsState {
     | "gemini"
     | "perplexity"
     | "openrouter"
-    | "grok";
+    | "grok"
+    | "opencode"
+    | "custom";
   externalApiKey?: string;
   externalModelId?: string;
+  externalApiCustomBaseUrl?: string;
   // Tamagotchi Mode settings
   tamagotchiEnabled: boolean;
   tamagotchiHappiness: number;
@@ -142,6 +145,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   externalApiProvider: "openai",
   externalApiKey: "",
   externalModelId: "gpt-4o",
+  externalApiCustomBaseUrl: "",
   // Tamagotchi defaults
   tamagotchiEnabled: true,
   tamagotchiHappiness: 80,

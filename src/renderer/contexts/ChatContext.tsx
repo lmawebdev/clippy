@@ -384,6 +384,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           apiMessages,
           systemPrompt,
           controller.signal,
+          settings.externalApiCustomBaseUrl,
         );
 
         for await (const chunk of stream) {

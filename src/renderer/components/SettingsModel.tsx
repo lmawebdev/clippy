@@ -107,6 +107,12 @@ export const SettingsModel: React.FC = () => {
       case "grok":
         defaultModelId = "grok-beta";
         break;
+      case "opencode":
+        defaultModelId = "deepseek-v4-flash-free";
+        break;
+      case "custom":
+        defaultModelId = "";
+        break;
     }
     if (defaultModelId) {
       clippyApi.setState("settings.externalModelId", defaultModelId);
@@ -164,8 +170,33 @@ export const SettingsModel: React.FC = () => {
                 <option value="perplexity">Perplexity</option>
                 <option value="openrouter">OpenRouter</option>
                 <option value="grok">Grok (xAI)</option>
+                <option value="opencode">OpenCode (Zen)</option>
+                <option value="custom">Custom (OpenAI-compatible)</option>
               </select>
             </div>
+
+            {settings.externalApiProvider === "custom" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <label htmlFor="customBaseUrl">Base URL:</label>
+                <input
+                  type="text"
+                  id="customBaseUrl"
+                  value={settings.externalApiCustomBaseUrl || ""}
+                  onChange={(e) =>
+                    clippyApi.setState(
+                      "settings.externalApiCustomBaseUrl",
+                      e.target.value,
+                    )
+                  }
+                  placeholder="https://api.myprovider.com/v1/chat/completions"
+                  style={{ padding: 5 }}
+                />
+                <small style={{ color: "#666" }}>
+                  Full endpoint URL for any OpenAI-compatible API (e.g., Ollama,
+                  LM Studio, llama.cpp, vLLM, Together, Groq...).
+                </small>
+              </div>
+            )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <label htmlFor="apiKey">API Key:</label>
