@@ -474,5 +474,10 @@ export function getModelPath(model: Model): string {
  * @returns {string}
  */
 export function getModelFileName(model: Model): string {
-  return path.basename(new URL(model.url).pathname);
+  if (!model.url) return "";
+  try {
+    return path.basename(new URL(model.url).pathname);
+  } catch {
+    return "";
+  }
 }

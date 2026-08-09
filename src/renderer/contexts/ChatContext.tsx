@@ -7,6 +7,14 @@ import {
   useCallback,
   useRef,
 } from "react";
+
+export interface BubbleQueueItem {
+  id: string;
+  text: string;
+  mode: string;
+  duration: number;
+  animation?: string;
+}
 import { Message } from "../components/Message";
 import { clippyApi, electronAi } from "../clippyApi";
 import { SharedStateContext } from "./SharedStateContext";
@@ -56,8 +64,10 @@ export type ChatContextType = {
   sendMessage: (content: string) => Promise<void>;
   streamingMessageContent: string;
   abortMessage: () => void;
-  bubbleMessage: { text: string; mode: string; duration: number } | null;
-  showBubbleMessage: (text: string, mode?: string, duration?: number) => void;
+  bubbleQueue: BubbleQueueItem[];
+  enqueueBubbleMessage: (text: string, mode?: string, duration?: number, animation?: string) => void;
+  dismissBubbleItem: (id: string) => void;
+  showBubbleMessage: (text: string, mode?: string, duration?: number, animation?: string) => void;
 };
 
 export const ChatContext = createContext<ChatContextType | undefined>(
@@ -640,15 +650,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const [bubbleMessage, setBubbleMessage] = useState<{ text: string; mode: string; duration: number } | null>(null);
+  const [bubbleQueue, setBubbleQueue] = useState<BubbleQueueItem[]>([]);
 
-  const showBubbleMessage = useCallback((text: string, mode = "custom", duration = 8) => {
-    setBubbleMessage({ text, mode, duration });
-    // Reset after duration + animation time to avoid stale reference if same message triggered
-    setTimeout(() => {
-      setBubbleMessage(prev => prev?.text === text ? null : prev);
-    }, (duration + 1) * 1000);
+  const enqueueBubbleMessage = useCallback((text: string, mode = "custom", duration = 8, animation?: string) => {
+    const id = crypto.randomUUID();
+    setBubbleQueue(prev => [...prev, { id, text, mode, duration, animation }]);
   }, []);
+
+  const dismissBubbleItem = useCallback((id: string) => {
+    setBubbleQueue(prev => prev.filter(item => item.id !== id));
+  }, []);
+
+  const showBubbleMessage = useCallback((text: string, mode = "custom", duration = 8, animation?: string) => {
+    enqueueBubbleMessage(text, mode, duration, animation);
+  }, [enqueueBubbleMessage]);
 
   const value = {
     chatRecords,
@@ -674,7 +689,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     sendMessage,
     streamingMessageContent,
     abortMessage,
-    bubbleMessage,
+    bubbleQueue,
+    enqueueBubbleMessage,
+    dismissBubbleItem,
     showBubbleMessage,
   };
 

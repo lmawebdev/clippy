@@ -66,6 +66,14 @@ export const SettingsAppearance: React.FC = () => {
           checked={settings.tamagotchiEnabled ?? true}
           onChange={(checked) => {
             clippyApi.setState("settings.tamagotchiEnabled", checked);
+            if (!checked) {
+              clippyApi.setState("settings.tamagotchiHappiness", 80);
+              clippyApi.setState("settings.tamagotchiEnergy", 80);
+              clippyApi.setState("settings.tamagotchiFocus", 50);
+              clippyApi.setState("settings.tamagotchiHunger", 80);
+              clippyApi.setState("settings.tamagotchiHealth", 80);
+              clippyApi.setState("settings.tamagotchiLastUpdate", Date.now());
+            }
           }}
         />
       </fieldset>

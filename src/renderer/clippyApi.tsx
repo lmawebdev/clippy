@@ -81,6 +81,10 @@ export type ClippyApi = {
   offClipboardHistoryUpdated: () => void;
   // System Info
   getSystemInfo: () => Promise<SystemInfo | null>;
+  // Tamagotchi
+  onShowTamagotchiStats: (callback: () => void) => void;
+  offShowTamagotchiStats: () => void;
+
   // Global Input
   onGlobalKeyDown: (callback: () => void) => void;
   offGlobalKeyDown: () => void;

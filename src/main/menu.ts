@@ -112,7 +112,7 @@ export function getMainAppMenu(): Menu {
   if (settings.tamagotchiEnabled) {
     template.push({ type: "separator" });
     template.push({
-      label: "👾 Tamagotchi",
+      label: "Tamagotchi",
       submenu: [
         {
           label: "🍎 Alimentar (Comer)",
@@ -129,6 +129,13 @@ export function getMainAppMenu(): Menu {
         {
           label: "⏰ Despertar",
           click: () => wakeUpTamagotchi(),
+        },
+        { type: "separator" },
+        {
+          label: "📊 Ver Estado",
+          click: () => {
+            getMainWindow()?.webContents.send(IpcMessages.SHOW_TAMAGOTCHI_STATS);
+          },
         },
       ],
     });

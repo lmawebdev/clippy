@@ -82,7 +82,7 @@ export class StateManager {
         if (!isModelOnDisk(model)) {
           delete models[modelName];
         }
-      } else {
+      } else if (model.url) {
         model.downloaded = isModelOnDisk(model);
         model.path = getModelPath(model);
       }

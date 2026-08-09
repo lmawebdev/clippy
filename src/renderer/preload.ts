@@ -143,6 +143,14 @@ const clippyApi: ClippyApi = {
   // System Info
   getSystemInfo: () => ipcRenderer.invoke(IpcMessages.GET_SYSTEM_INFO),
 
+  // Tamagotchi
+  onShowTamagotchiStats: (callback: () => void) => {
+    ipcRenderer.on(IpcMessages.SHOW_TAMAGOTCHI_STATS, () => callback());
+  },
+  offShowTamagotchiStats: () => {
+    ipcRenderer.removeAllListeners(IpcMessages.SHOW_TAMAGOTCHI_STATS);
+  },
+
   // Global Input
   onGlobalKeyDown: (callback: () => void) => {
     ipcRenderer.on(IpcMessages.GLOBAL_KEY_DOWN, callback);

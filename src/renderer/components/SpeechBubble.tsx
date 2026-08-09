@@ -8,14 +8,14 @@ import { useSharedState } from "../contexts/SharedStateContext";
 import { getRandomTip, intervalToMs, Tip } from "../helpers/tipProviders";
 import { Objective } from "../../sharedState";
 
-import { useChat } from "../contexts/ChatContext";
+import { useChat, BubbleQueueItem } from "../contexts/ChatContext";
 
 import "./css/SpeechBubble.css";
 
 const INITIAL_DELAY = 3000; // Show first tip 3 seconds after start
 
 interface SpeechBubbleProps {
-  onVisibilityChange?: (isVisible: boolean) => void;
+  onVisibilityChange?: (isVisible: boolean, queueItem?: BubbleQueueItem | null) => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   mode?: "tips" | "stats" | "tamagotchi" | "custom" | "objectives";
@@ -28,10 +28,14 @@ export function SpeechBubble({
   mode = "tips",
 }: SpeechBubbleProps) {
   const { settings } = useSharedState();
-  const { bubbleMessage } = useChat();
+  const { bubbleQueue, dismissBubbleItem } = useChat();
   const [currentTip, setCurrentTip] = useState<Tip | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+
+  // Queue overlay state (separate from normal mode visibility)
+  const [queueItem, setQueueItem] = useState<BubbleQueueItem | null>(null);
+  const [queueExiting, setQueueExiting] = useState(false);
 
   // Stats state
   const [systemInfo, setSystemInfo] = useState<any>(null);
@@ -41,24 +45,38 @@ export function SpeechBubble({
   const [liveObjectives, setLiveObjectives] = useState<Objective[]>([]);
   const [objectiveIndex, setObjectiveIndex] = useState(0);
 
-  // Listen for custom bubble messages
+  // Process queue: show one item at a time, exit animation before next
   useEffect(() => {
-    if (!bubbleMessage) return;
+    if (queueItem) return;
 
-    setCurrentTip({ content: bubbleMessage.text } as Tip);
-    setIsVisible(true);
-    setIsExiting(false);
+    const next = bubbleQueueRef.current[0];
+    if (!next) return;
 
-    const timer = setTimeout(() => {
-      setIsExiting(true);
-      setTimeout(() => {
-        setIsVisible(false);
-        setIsExiting(false);
+    setQueueItem(next);
+    setQueueExiting(false);
+
+    const displayTimer = setTimeout(() => {
+      setQueueExiting(true);
+
+      const exitTimer = setTimeout(() => {
+        dismissBubbleItem(next.id);
+        setQueueItem(null);
+        setQueueExiting(false);
       }, 300);
-    }, bubbleMessage.duration * 1000);
+    }, next.duration * 1000);
 
-    return () => clearTimeout(timer);
-  }, [bubbleMessage]);
+    return () => {
+      clearTimeout(displayTimer);
+    };
+  }, [queueItem, dismissBubbleItem]);
+
+  // Notify parent of combined visibility (queue overrides normal mode)
+  const combinedVisible = queueItem ? true : isVisible;
+  const combinedExiting = queueItem ? queueExiting : isExiting;
+
+  useEffect(() => {
+    onVisibilityChange?.(combinedVisible && !combinedExiting, queueItem);
+  }, [combinedVisible, combinedExiting, onVisibilityChange, queueItem]);
 
   // Listen for active app updates
   useEffect(() => {
@@ -80,22 +98,33 @@ export function SpeechBubble({
   // Refs to hold latest state for the interval callback
   const activeAppRef = useRef(activeApp);
   const settingsRef = useRef(settings);
+  const modeRef = useRef(mode);
+  const bubbleQueueRef = useRef(bubbleQueue);
 
   // Update refs when state changes
   useEffect(() => {
     activeAppRef.current = activeApp;
     settingsRef.current = settings;
-  }, [activeApp, settings]);
+    modeRef.current = mode;
+    bubbleQueueRef.current = bubbleQueue;
+  }, [activeApp, settings, mode, bubbleQueue]);
 
   // Notify parent when visibility changes
   useEffect(() => {
-    onVisibilityChange?.(isVisible && !isExiting);
+    onVisibilityChange?.(isVisible && !isExiting, null);
   }, [isVisible, isExiting, onVisibilityChange]);
+
+  // Clear stale tip content when leaving tips mode
+  // Prevents stale currentTip from showing immediately when returning to tips
+  useEffect(() => {
+    if (mode !== "tips") {
+      setCurrentTip(null);
+    }
+  }, [mode]);
 
   // TIPS MODE LOGIC
   const showTip = useCallback(async () => {
-    // Only show tips if mode is tips!
-    if (mode !== "tips") return;
+    if (modeRef.current !== "tips") return;
 
     const currentSettings = settingsRef.current;
     if (
@@ -107,27 +136,25 @@ export function SpeechBubble({
 
     try {
       const tip = await getRandomTip(currentSettings, activeAppRef.current);
-      if (tip) {
-        setCurrentTip(tip);
-        setIsExiting(false);
-        setIsVisible(true);
+      if (modeRef.current !== "tips" || !tip) return;
 
-        // Get display duration from settings (convert seconds to ms)
-        const displayDuration = (currentSettings.tipBubbleDuration || 8) * 1000;
+      setCurrentTip(tip);
+      setIsExiting(false);
+      setIsVisible(true);
 
-        // Hide after display duration
+      const displayDuration = (currentSettings.tipBubbleDuration || 8) * 1000;
+
+      setTimeout(() => {
+        setIsExiting(true);
         setTimeout(() => {
-          setIsExiting(true);
-          setTimeout(() => {
-            setIsVisible(false);
-            setIsExiting(false);
-          }, 300); // Wait for exit animation
-        }, displayDuration);
-      }
+          setIsVisible(false);
+          setIsExiting(false);
+        }, 300);
+      }, displayDuration);
     } catch (error) {
       console.error("Error showing tip:", error);
     }
-  }, [mode]);
+  }, []);
 
   // Effect for TIPS scheduling
   useEffect(() => {
@@ -261,6 +288,24 @@ export function SpeechBubble({
       clearTimeout(timeout);
     };
   }, [mode]);
+
+  // Queue overlay takes full priority over normal mode
+  if (queueItem) {
+    return (
+      <div
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+        className={`speech-bubble-container ${queueExiting ? "exiting" : ""}`}
+        role="alert"
+        aria-live="polite">
+        <div className="speech-bubble">
+          <div className="speech-bubble-content">
+            <p>{queueItem.text}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (
     !isVisible ||

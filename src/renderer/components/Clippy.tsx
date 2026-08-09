@@ -22,15 +22,42 @@ const VALID_RANDOM_KEYS = ANIMATION_KEYS.filter(
   (key) => key !== "Default" && key !== "Show" && key !== "Hide",
 );
 
+// Tamagotchi stat alert mapping
+type StatKey = "hunger" | "health" | "happiness" | "focus";
+
+interface StatAlert {
+  animation: string;
+  message: string;
+}
+
+const STAT_ALERTS: Record<StatKey, StatAlert> = {
+  hunger: {
+    animation: "Searching",
+    message: "¡Tengo hambre! Necesito que me alimentes 🍕",
+  },
+  health: {
+    animation: "IdleHeadScratch",
+    message: "No me siento bien... Llévame al médico 💊",
+  },
+  happiness: {
+    animation: "IdleRopePile",
+    message: "Estoy muy triste... Juega un rato conmigo 🎮",
+  },
+  focus: {
+    animation: "IdleFingerTap",
+    message: "Estoy aburrido... Dame algo interesante 📝",
+  },
+};
+
 export function Clippy() {
-  const { animationKey, status } = useChat();
+  const { animationKey, status, enqueueBubbleMessage } = useChat();
   const { settings } = useSharedState();
   const { enableDragDebug } = useDebugState();
   const [animation, setAnimation] = useState<Animation>(EMPTY_ANIMATION);
   const [isBubbleVisible, setIsBubbleVisible] = useState(false);
 
   // Tamagotchi hook integration
-  const { happiness, energy, focus, hunger, health, feed, pet, heal, recordKeyPress, wakeUp, isLowState } = useTamagotchi();
+  const { happiness, energy, focus, hunger, health, feed, pet, heal, recordKeyPress, wakeUp } = useTamagotchi();
 
   // Objectives hook – handles progress tracking and bubble notifications
   useObjectives();
@@ -40,7 +67,7 @@ export function Clippy() {
   const lastIdleAnimationRef = useRef<Animation | undefined>(undefined);
 
   // Track if we are currently handling a special activity to prevent overlaps
-  // "idle-loop" | "click-reaction" | "bubble-interaction" | "external-command" | "low-state"
+  // "idle-loop" | "click-reaction" | "bubble-interaction" | "external-command" | "external-app-trigger" | "writing" | "eating" | "bubble-interaction-cooldown" | "sleeping" | "low-stat-alert"
   const activityRef = useRef<string>("idle-loop");
 
   // Clear any pending timeout
@@ -152,23 +179,68 @@ export function Clippy() {
     }
   }, [energy, isBubbleVisible, playOneAnimation, clearScheduler]);
 
-  // Low state animation loop (when any bar is < 20% and not sleeping)
+  // --- Tamagotchi Low-Stat Alert System ---
+  // Plays ONE specific animation per stat (not looped) + shows notification.
+  // Energy uses the sleep loop for visuals; we only notify for it.
+
+  const lastStatAlertRef = useRef<Record<string, number>>({
+    hunger: 0,
+    health: 0,
+    happiness: 0,
+    focus: 0,
+    energy: 0,
+  });
+
   useEffect(() => {
-    if (isLowState && energy >= 20 && !isBubbleVisible) {
-      clearScheduler();
-      activityRef.current = "low-state";
+    if (!settings.tamagotchiEnabled) return;
 
-      const playLowStateLoop = () => {
-        if (activityRef.current !== "low-state") return;
-        playOneAnimation(ANIMATIONS.Alert, () => {
-          if (activityRef.current !== "low-state") return;
-          timeoutRef.current = window.setTimeout(playLowStateLoop, 4000);
-        });
-      };
+    const now = Date.now();
+    const COOLDOWN_MS = 2 * 60 * 1000;
+    const THRESHOLD = 20;
 
-      playLowStateLoop();
+    // Energy: sleep loop handles animation, just notify
+    if (energy < THRESHOLD && now - lastStatAlertRef.current.energy >= COOLDOWN_MS) {
+      lastStatAlertRef.current.energy = now;
+      enqueueBubbleMessage("Estoy agotado... Necesito descansar 😴", "custom", 6);
     }
-  }, [isLowState, energy, isBubbleVisible, playOneAnimation, clearScheduler]);
+
+    // Non-energy stats: pick the LOWEST one, play animation ONCE
+    const stats: [StatKey, number][] = [
+      ["hunger", hunger],
+      ["health", health],
+      ["happiness", happiness],
+      ["focus", focus],
+    ];
+
+    let lowestStat: StatKey | null = null;
+    let lowestValue = 100;
+
+    for (const [key, value] of stats) {
+      if (value < lowestValue) {
+        lowestValue = value;
+        lowestStat = key;
+      }
+    }
+
+    if (
+      lowestStat &&
+      lowestValue < THRESHOLD &&
+      now - lastStatAlertRef.current[lowestStat] >= COOLDOWN_MS
+    ) {
+      lastStatAlertRef.current[lowestStat] = now;
+      const alert = STAT_ALERTS[lowestStat];
+
+      enqueueBubbleMessage(alert.message, "custom", 6, alert.animation);
+    }
+  }, [
+    hunger,
+    health,
+    happiness,
+    focus,
+    energy,
+    settings.tamagotchiEnabled,
+    enqueueBubbleMessage,
+  ]);
 
   // --- Interaction Handlers ---
 
@@ -181,9 +253,13 @@ export function Clippy() {
   const handleClick = useCallback(() => {
     // Toggle mode
     const hasObjectives = (settings.objectives ?? []).filter((o) => !o.paused).length > 0;
+    const tamagotchiEnabled = settings.tamagotchiEnabled ?? true;
     setSpeechBubbleMode((prev) => {
       if (prev === "tips") return "stats";
-      if (prev === "stats") return "tamagotchi";
+      if (prev === "stats") {
+        if (tamagotchiEnabled) return "tamagotchi";
+        return hasObjectives ? "objectives" : "tips";
+      }
       if (prev === "tamagotchi") return hasObjectives ? "objectives" : "tips";
       return "tips";
     });
@@ -235,6 +311,7 @@ export function Clippy() {
     wakeUp,
     pet,
     settings.objectives,
+    settings.tamagotchiEnabled,
   ]);
 
   // Handle Drag & Drop to feed Clippy
@@ -258,13 +335,30 @@ export function Clippy() {
 
   // Handle Bubble Visibility
   const handleBubbleVisibilityChange = useCallback(
-    (visible: boolean) => {
+    (visible: boolean, currentQueueItem?: any) => {
       setIsBubbleVisible(visible);
 
       if (visible) {
         // Interrupt everything
         clearScheduler();
         activityRef.current = "bubble-interaction";
+
+        if (currentQueueItem && currentQueueItem.animation) {
+          const customAnim = ANIMATIONS[currentQueueItem.animation];
+          if (customAnim) {
+            playOneAnimation(customAnim, () => {
+              if (activityRef.current !== "bubble-interaction") return;
+              const playLookUpLoop = () => {
+                if (activityRef.current !== "bubble-interaction") return;
+                playOneAnimation(ANIMATIONS[LOOK_UP_ANIMATION], () => {
+                  playLookUpLoop();
+                });
+              };
+              playLookUpLoop();
+            });
+            return;
+          }
+        }
 
         // Standard behavior: Look at bubble
         const playLookUpLoop = () => {
@@ -435,6 +529,16 @@ export function Clippy() {
     startIdleLoop,
     energy,
   ]);
+
+  // Handle Show Tamagotchi Stats (from menu)
+  useEffect(() => {
+    window.clippy.onShowTamagotchiStats(() => {
+      setSpeechBubbleMode("tamagotchi");
+    });
+    return () => {
+      window.clippy.offShowTamagotchiStats();
+    };
+  }, []);
 
   // --- Mouse Events for Click-Through ---
   useEffect(() => {
