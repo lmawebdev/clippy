@@ -232,6 +232,13 @@ export function getMainAppMenu(): Menu {
       accelerator: "CmdOrCtrl+Shift+V",
     }),
   );
+  windowMenu?.submenu?.append(
+    new MenuItem({
+      label: "⏰ Reminders",
+      click: () => openView("reminders"),
+      accelerator: "CmdOrCtrl+Shift+R",
+    }),
+  );
 
   return menu;
 }
@@ -295,6 +302,11 @@ function getViewMenu(): MenuItemConstructorOptions[] {
       label: "Clipboard History",
       click: () => openView("clipboard"),
       accelerator: "CmdOrCtrl+Shift+V",
+    },
+    {
+      label: "Reminders",
+      click: () => openView("reminders"),
+      accelerator: "CmdOrCtrl+Shift+R",
     },
     { type: "separator" },
     { role: "toggleDevTools" },

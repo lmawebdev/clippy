@@ -6,6 +6,23 @@ export const IDLE_ANIMATION_KEYS = ANIMATION_KEYS.filter((k) =>
   k.startsWith("Idle"),
 );
 
+// Animations suitable for standby behavior: mostly calm idle poses plus a few
+// gentle actions, so Clippy stays subtle and doesn't overwhelm with big moves.
+export const STANDBY_ANIMATION_KEYS = [
+  // Idle animations (calm, subtle)
+  "Idle1 1",
+  "IdleAtom",
+  "IdleEyeBrowRaise",
+  "IdleFingerTap",
+  "IdleHeadScratch",
+  "IdleRopePile",
+  "IdleSideToSide",
+  // A few gentle actions (not too flashy)
+  "Wave",
+  "Thinking",
+  "LookUp",
+];
+
 export const EMPTY_ANIMATION: Animation = {
   src: `data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==`,
   length: 0,
@@ -39,4 +56,25 @@ export function getRandomAnimation(keys: string[], current?: Animation) {
  */
 export function getRandomIdleAnimation(current?: Animation) {
   return getRandomAnimation(IDLE_ANIMATION_KEYS, current);
+}
+
+/**
+ * Get a random standby animation key, avoiding recently played ones so the
+ * idle behavior feels varied instead of repetitive.
+ *
+ * @param recentKeys - Keys of recently played animations to avoid
+ * @param maxRecent - How many of the most recent animations to avoid (default 3)
+ * @returns A random standby animation key
+ */
+export function getRandomStandbyAnimation(
+  recentKeys: string[] = [],
+  maxRecent = 3,
+): string {
+  const avoid = new Set(recentKeys.slice(-maxRecent));
+  const available = STANDBY_ANIMATION_KEYS.filter((k) => !avoid.has(k));
+
+  // Fall back to the full pool if everything was recently played
+  const pool = available.length > 0 ? available : STANDBY_ANIMATION_KEYS;
+
+  return pool[Math.floor(Math.random() * pool.length)];
 }

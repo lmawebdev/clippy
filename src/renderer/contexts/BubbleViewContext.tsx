@@ -5,6 +5,7 @@ export type BubbleView =
   | "chat"
   | "chats"
   | "clipboard"
+  | "reminders"
   | "settings"
   | "settings-general"
   | "settings-tips"

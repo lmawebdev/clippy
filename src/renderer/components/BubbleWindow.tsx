@@ -7,6 +7,7 @@ import { useBubbleView } from "../contexts/BubbleViewContext";
 import { Chats } from "./Chats";
 import { useChat } from "../contexts/ChatContext";
 import { ClipboardManager } from "./ClipboardManager";
+import { Reminders } from "./Reminders";
 
 export function Bubble() {
   const { currentView, setCurrentView } = useBubbleView();
@@ -44,6 +45,8 @@ export function Bubble() {
     content = <Chats onClose={() => setCurrentView("chat")} />;
   } else if (currentView === "clipboard") {
     content = <ClipboardManager onClose={() => setCurrentView("chat")} />;
+  } else if (currentView === "reminders") {
+    content = <Reminders onClose={() => setCurrentView("chat")} />;
   }
 
   const handleClipboardClick = useCallback(() => {
@@ -59,6 +62,14 @@ export function Bubble() {
       setCurrentView("chat");
     } else {
       setCurrentView("chats");
+    }
+  }, [setCurrentView, currentView]);
+
+  const handleRemindersClick = useCallback(() => {
+    if (currentView === "reminders") {
+      setCurrentView("chat");
+    } else {
+      setCurrentView("reminders");
     }
   }, [setCurrentView, currentView]);
 
@@ -82,9 +93,11 @@ export function Bubble() {
   const titleText =
     currentView === "chats"
       ? "Chat History"
-      : currentView.startsWith("settings")
-        ? "Settings"
-        : "Chat with Clippy";
+      : currentView === "reminders"
+        ? "Reminders"
+        : currentView.startsWith("settings")
+          ? "Settings"
+          : "Chat with Clippy";
 
   return (
     <div className="bubble-container window" style={containerStyle}>
@@ -120,6 +133,15 @@ export function Bubble() {
             }}
             onClick={handleClipboardClick}>
             📋
+          </button>
+          <button
+            style={{
+              marginRight: "8px",
+              paddingLeft: "8px",
+              paddingRight: "8px",
+            }}
+            onClick={handleRemindersClick}>
+            ⏰
           </button>
           <button
             style={{

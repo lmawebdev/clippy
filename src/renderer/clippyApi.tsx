@@ -101,6 +101,14 @@ export type ClippyApi = {
   // Active App Update
   onActiveAppUpdate: (callback: (appName: string) => void) => void;
   offActiveAppUpdate: () => void;
+  // Reminders
+  onReminderFired: (callback: (text: string, id: string) => void) => void;
+  offReminderFired: () => void;
+  onReminderOpenView: (callback: () => void) => void;
+  offReminderOpenView: () => void;
+  // Inactivity
+  onInactivityDetected: (callback: (minutes: number) => void) => void;
+  offInactivityDetected: () => void;
 };
 
 declare global {

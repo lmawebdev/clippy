@@ -2,6 +2,7 @@ import { uIOhook, UiohookKey } from "uiohook-napi";
 import { BrowserWindow } from "electron";
 import { IpcMessages } from "../ipc-messages";
 import { getLogger } from "./logger";
+import { recordUserActivity } from "./inactivity";
 
 let isListening = false;
 
@@ -9,6 +10,9 @@ export function setupKeyboardListener() {
   if (isListening) return;
 
   uIOhook.on("keydown", (e) => {
+    // Record user activity for the inactivity monitor
+    recordUserActivity();
+
     // Determine if it's a delete action
     // Backspace = 14
     // Delete = 3667 (Mac fn+backspace)

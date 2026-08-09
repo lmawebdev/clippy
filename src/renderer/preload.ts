@@ -183,6 +183,34 @@ const clippyApi: ClippyApi = {
   offActiveAppUpdate: () => {
     ipcRenderer.removeAllListeners(IpcMessages.ACTIVE_APP_UPDATE);
   },
+
+  // Reminders
+  onReminderFired: (callback: (text: string, id: string) => void) => {
+    ipcRenderer.on(
+      IpcMessages.REMINDER_FIRED,
+      (_event, text: string, id: string) => callback(text, id),
+    );
+  },
+  offReminderFired: () => {
+    ipcRenderer.removeAllListeners(IpcMessages.REMINDER_FIRED);
+  },
+  onReminderOpenView: (callback: () => void) => {
+    ipcRenderer.on(IpcMessages.REMINDER_OPEN_VIEW, () => callback());
+  },
+  offReminderOpenView: () => {
+    ipcRenderer.removeAllListeners(IpcMessages.REMINDER_OPEN_VIEW);
+  },
+
+  // Inactivity
+  onInactivityDetected: (callback: (minutes: number) => void) => {
+    ipcRenderer.on(
+      IpcMessages.INACTIVITY_DETECTED,
+      (_event, minutes: number) => callback(minutes),
+    );
+  },
+  offInactivityDetected: () => {
+    ipcRenderer.removeAllListeners(IpcMessages.INACTIVITY_DETECTED);
+  },
 };
 
 contextBridge.exposeInMainWorld("clippy", clippyApi);

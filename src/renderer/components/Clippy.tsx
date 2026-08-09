@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { ANIMATIONS, Animation } from "../clippy-animations";
 import {
   EMPTY_ANIMATION,
-  getRandomIdleAnimation,
+  getRandomStandbyAnimation,
   ANIMATION_KEYS,
 } from "../clippy-animation-helpers";
 import { useChat } from "../contexts/ChatContext";
@@ -64,7 +64,8 @@ export function Clippy() {
 
   // Refs for scheduler management
   const timeoutRef = useRef<number | undefined>(undefined);
-  const lastIdleAnimationRef = useRef<Animation | undefined>(undefined);
+  // Track recently played standby animations to avoid repetition
+  const recentStandbyAnimationsRef = useRef<string[]>([]);
 
   // Track if we are currently handling a special activity to prevent overlaps
   // "idle-loop" | "click-reaction" | "bubble-interaction" | "external-command" | "external-app-trigger" | "writing" | "eating" | "bubble-interaction-cooldown" | "sleeping" | "low-stat-alert"
@@ -102,7 +103,7 @@ export function Clippy() {
 
   // --- Logic Loops ---
 
-  // 1. Burst Logic: Play animations until total time ~4-5s
+  // 1. Burst Logic: Play animations until total time ~2-4s
   const playIdleBurst = useCallback(
     (targetDurationMs: number, onComplete: () => void) => {
       let currentDuration = 0;
@@ -115,8 +116,14 @@ export function Clippy() {
           return;
         }
 
-        const nextAnim = getRandomIdleAnimation(lastIdleAnimationRef.current);
-        lastIdleAnimationRef.current = nextAnim;
+        const nextKey = getRandomStandbyAnimation(
+          recentStandbyAnimationsRef.current,
+        );
+        recentStandbyAnimationsRef.current = [
+          ...recentStandbyAnimationsRef.current,
+          nextKey,
+        ].slice(-5);
+        const nextAnim = ANIMATIONS[nextKey];
         const duration = nextAnim.length > 0 ? nextAnim.length : 1000;
 
         currentDuration += duration;
@@ -144,14 +151,14 @@ export function Clippy() {
       if (activityRef.current !== "idle-loop") return;
       if (isBubbleVisible) return; // Guard
 
-      const burstDuration = 4000 + Math.floor(Math.random() * 1000); // 4-5s
+      const burstDuration = 2000 + Math.floor(Math.random() * 2000); // 2-4s
 
       playIdleBurst(burstDuration, () => {
         if (activityRef.current !== "idle-loop") return;
 
-        // After burst, set default and wait 3-4s
+        // After burst, set default and wait 4-8s (mostly idle)
         setIdleFrame();
-        const restDuration = 3000 + Math.floor(Math.random() * 1000); // 3-4s
+        const restDuration = 4000 + Math.floor(Math.random() * 4000); // 4-8s
 
         timeoutRef.current = window.setTimeout(() => {
           runBurst();
@@ -539,6 +546,34 @@ export function Clippy() {
       window.clippy.offShowTamagotchiStats();
     };
   }, []);
+
+  // Handle Reminder Fired (from main process)
+  useEffect(() => {
+    const handleReminderFired = (text: string) => {
+      enqueueBubbleMessage(`⏰ ${text}`, "custom", 10);
+    };
+
+    window.clippy.onReminderFired(handleReminderFired);
+    return () => {
+      window.clippy.offReminderFired();
+    };
+  }, [enqueueBubbleMessage]);
+
+  // Handle Inactivity Detected (from main process)
+  useEffect(() => {
+    const handleInactivityDetected = (minutes: number) => {
+      enqueueBubbleMessage(
+        `💤 Llevas ${minutes} min sin actividad. ¿Descansamos un poco o seguimos?`,
+        "custom",
+        10,
+      );
+    };
+
+    window.clippy.onInactivityDetected(handleInactivityDetected);
+    return () => {
+      window.clippy.offInactivityDetected();
+    };
+  }, [enqueueBubbleMessage]);
 
   // --- Mouse Events for Click-Through ---
   useEffect(() => {

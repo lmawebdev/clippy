@@ -71,6 +71,27 @@ export interface SettingsState {
   tamagotchiLastUpdate: number;
   // Objectives settings
   objectives: Objective[];
+  // Reminders settings
+  remindersEnabled: boolean;
+  reminders: Reminder[];
+  // Inactivity detection settings
+  inactivityEnabled: boolean;
+  inactivityThresholdMinutes: number;
+  inactivityLastActiveTimestamp: number;
+  inactivityLastNotifiedTimestamp: number;
+}
+
+export type ReminderRepeat = "none" | "daily" | "weekly";
+
+export interface Reminder {
+  id: string;
+  text: string;
+  time: string; // "HH:mm" 24h format
+  repeat: ReminderRepeat;
+  days: number[]; // 0 = Sunday ... 6 = Saturday (for weekly repeat)
+  enabled: boolean;
+  createdAt: number;
+  lastFiredKey?: string; // "YYYY-MM-DD" or "YYYY-MM-DD-WW" to avoid double-firing
 }
 
 export type ObjectiveCategory = "code" | "reading" | "entertainment" | "other";
@@ -160,6 +181,14 @@ export const DEFAULT_SETTINGS: SettingsState = {
   tamagotchiLastUpdate: Date.now(),
   // Objectives defaults
   objectives: [],
+  // Reminders defaults
+  remindersEnabled: true,
+  reminders: [],
+  // Inactivity defaults
+  inactivityEnabled: true,
+  inactivityThresholdMinutes: 30,
+  inactivityLastActiveTimestamp: Date.now(),
+  inactivityLastNotifiedTimestamp: 0,
 };
 
 export const EMPTY_SHARED_STATE: SharedState = {

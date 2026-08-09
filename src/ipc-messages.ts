@@ -66,4 +66,11 @@ export const IpcMessages = {
   SET_IGNORE_MOUSE_EVENTS: "clippy_set_ignore_mouse_events",
   EXTERNAL_APP_TRIGGER: "clippy_external_app_trigger",
   ACTIVE_APP_UPDATE: "clippy_active_app_update",
+
+  // Reminders
+  REMINDER_FIRED: "clippy_reminder_fired",
+  REMINDER_OPEN_VIEW: "clippy_reminder_open_view",
+
+  // Inactivity
+  INACTIVITY_DETECTED: "clippy_inactivity_detected",
 };
