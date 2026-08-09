@@ -7,6 +7,7 @@ import {
   getRandomShortcut,
 } from "./keyboardShortcuts";
 import { clippyApi } from "../clippyApi";
+import { ExternalLLMService, ExternalApiProvider } from "../api/external-llm";
 import type { SettingsState } from "../../sharedState";
 import {
   HEALTH_TIPS,
@@ -22,7 +23,8 @@ export type TipType =
   | "productivity"
   | "weather"
   | "health"
-  | "didyouknow";
+  | "didyouknow"
+  | "ai";
 
 export interface Tip {
   type: TipType;
@@ -173,6 +175,131 @@ function getDidYouKnowTip(): Tip {
 }
 
 /**
+ * Get AI tip using the external LLM provider
+ * Returns null if no response was received (bubble should not be shown)
+ */
+
+// History of recently generated AI tips (max 6) to avoid repeating content
+const AI_TIP_HISTORY: string[] = [];
+const AI_TIP_HISTORY_MAX = 6;
+
+async function getAITip(settings: SettingsState): Promise<Tip | null> {
+  try {
+    if (!settings.useExternalApi || !settings.externalApiKey) {
+      return null;
+    }
+
+    const categories = (settings.tipAICategories || "")
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+
+    // Categories are required: avoid making requests without them
+    if (categories.length === 0) {
+      return null;
+    }
+
+    // Pick a random category instead of sending all at once
+    const randomCategory =
+      categories[Math.floor(Math.random() * categories.length)];
+
+    const categoryPrompt = `El tip debe ser sobre la siguiente categoría: ${randomCategory}.`;
+
+    // Build short context of previously given tips so the AI doesn't repeat them
+    const historyContext =
+      AI_TIP_HISTORY.length > 0
+        ? `Tips que ya has dado anteriormente (NO los repitas ni te repitas con ellos):\n${AI_TIP_HISTORY.map(
+            (t, i) => `${i + 1}. ${t}`,
+          ).join("\n")}`
+        : "Aún no has dado ningún tip.";
+
+    const systemPrompt = `Eres un generador de tips. El usuario te dará SOLO un tema (una palabra o frase corta). Tu tarea es generar un tip breve y útil sobre ese tema.
+REGLAS ESTRICTAS E INNEGOCIABLES:
+- NO analices ni comentes el tema. NO repitas el tema. NO expliques qué es.
+- Genera DIRECTAMENTE el tip sobre el tema, como si fuera un dato curioso o consejo útil.
+- NUNCA empieces con frases como "Claro", "Aquí tienes", "Por supuesto", "Claro que sí", "Aquí está", "Te comparto" ni similares. Responde SOLO con el contenido del tip.
+- El tip debe ser EXTREMADAMENTE corto: UNA sola frase como máximo, o DOS frases muy breves. NUNCA más.
+- Máximo 15-20 palabras en total. Si no puedes resumirlo en tan poco, simplifica la idea.
+- NO uses listas numeradas, viñetas, ni índices como [1], [2], [a], etc.
+- NO uses corchetes [] en absoluto.
+- NO uses markdown, asteriscos ni negritas.
+- NO añadas emojis ni iconos.
+- NO uses puntos y coma ni paréntesis largos.
+- Responde SOLO con el texto del tip, sin introducciones, explicaciones ni despedidas.
+- El texto debe caber en 2 líneas de una burbuja pequeña.
+${categoryPrompt}
+${historyContext}`;
+
+    const stream = ExternalLLMService.streamResponse(
+      settings.externalApiProvider as ExternalApiProvider,
+      settings.externalApiKey,
+      settings.externalModelId || "gpt-4o",
+      [{ role: "user", content: randomCategory }],
+      systemPrompt,
+      undefined,
+      settings.externalApiCustomBaseUrl,
+    );
+
+    let content = "";
+    for await (const chunk of stream) {
+      content += chunk;
+    }
+
+    content = content.trim();
+
+    if (!content) {
+      return null;
+    }
+
+    // Strip markdown formatting (bold, italic, code, headers, links)
+    content = content
+      .replace(/\*\*(.+?)\*\*/g, "$1")
+      .replace(/\*(.+?)\*/g, "$1")
+      .replace(/`(.+?)`/g, "$1")
+      .replace(/^#{1,6}\s+/gm, "")
+      .replace(/\[(.+?)\]\(.+?\)/g, "$1")
+      .replace(/^[-*+]\s+/gm, "")
+      .replace(/^\d+[.)]\s+/gm, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    // Remove common conversational prefixes
+    content = content.replace(
+      /^(claro|claro que sí|claro que si|por supuesto|aquí tienes|aqui tienes|aquí está|aqui esta|te comparto|con gusto|claro, aquí|claro, aqui)[\s,:!.-]*/i,
+      "",
+    );
+    content = content.trim();
+
+    // Safety truncation: keep the tip short enough for the small bubble
+    const MAX_WORDS = 20;
+    const words = content.split(/\s+/);
+    if (words.length > MAX_WORDS) {
+      content = words.slice(0, MAX_WORDS).join(" ");
+      // Remove trailing punctuation if we cut mid-sentence
+      content = content.replace(/[,\s]+$/, "");
+      if (!/[.!?]$/.test(content)) {
+        content += ".";
+      }
+    }
+
+    // Store the generated tip in history (keep last 6) to avoid repetition
+    AI_TIP_HISTORY.push(content);
+    if (AI_TIP_HISTORY.length > AI_TIP_HISTORY_MAX) {
+      AI_TIP_HISTORY.shift();
+    }
+
+    return {
+      type: "ai",
+      content,
+      icon: "🤖",
+    };
+  } catch (error) {
+    console.error("Error generating AI tip:", error);
+    return null;
+  }
+}
+
+/**
  * WMO Weather Code to emoji and description mapping
  */
 const WMO_WEATHER_CODES: Record<
@@ -258,9 +385,14 @@ function getEnabledTipTypes(settings: SettingsState): TipType[] {
   if (settings.tipBubbleShowWeather) types.push("weather");
   if (settings.tipBubbleShowHealth) types.push("health");
   if (settings.tipBubbleShowDidYouKnow) types.push("didyouknow");
+  if (settings.tipBubbleShowAI && settings.useExternalApi) types.push("ai");
 
   return types;
 }
+
+// Rotation state: keeps track of the last shown tip type so tips rotate
+// evenly instead of always showing the same one (e.g. AI tips)
+let lastTipType: TipType | null = null;
 
 /**
  * Get a random tip based on enabled settings
@@ -282,8 +414,13 @@ export async function getRandomTip(
   if (activeApp && settings.tipBubbleShowShortcuts && Math.random() < 0.4) {
     randomType = "shortcut";
   } else {
-    randomType = enabledTypes[Math.floor(Math.random() * enabledTypes.length)];
+    // Rotation: avoid repeating the same type as the previous tip
+    const candidates = enabledTypes.filter((t) => t !== lastTipType);
+    const pool = candidates.length > 0 ? candidates : enabledTypes;
+    randomType = pool[Math.floor(Math.random() * pool.length)];
   }
+
+  lastTipType = randomType;
 
   switch (randomType) {
     case "time":
@@ -302,6 +439,8 @@ export async function getRandomTip(
       return getHealthTip();
     case "didyouknow":
       return getDidYouKnowTip();
+    case "ai":
+      return getAITip(settings);
     default:
       return getShortcutTip(activeApp);
   }

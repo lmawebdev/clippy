@@ -13,17 +13,17 @@ import { useSharedState } from "../contexts/SharedStateContext";
 import { Checkbox } from "./Checkbox";
 
 const INTERVAL_OPTIONS: { value: TipInterval; label: string }[] = [
-  { value: "1m", label: "Cada 1 minuto" },
-  { value: "5m", label: "Cada 5 minutos" },
-  { value: "10m", label: "Cada 10 minutos" },
-  { value: "30m", label: "Cada 30 minutos" },
-  { value: "1h", label: "Cada hora" },
-  { value: "silent", label: "Silenciado" },
+  { value: "1m", label: "Every 1 minute" },
+  { value: "5m", label: "Every 5 minutes" },
+  { value: "10m", label: "Every 10 minutes" },
+  { value: "30m", label: "Every 30 minutes" },
+  { value: "1h", label: "Every hour" },
+  { value: "silent", label: "Silent" },
 ];
 
 const TIME_FORMAT_OPTIONS: { value: "12h" | "24h"; label: string }[] = [
-  { value: "12h", label: "12 horas (AM/PM)" },
-  { value: "24h", label: "24 horas" },
+  { value: "12h", label: "12 hours (AM/PM)" },
+  { value: "24h", label: "24 hours" },
 ];
 
 interface GeocodingResult {
@@ -113,7 +113,7 @@ export const SettingsTips: React.FC = () => {
 
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
-      alert("Tu navegador no soporta geolocalización");
+      alert("Your browser does not support geolocation");
       return;
     }
 
@@ -149,7 +149,7 @@ export const SettingsTips: React.FC = () => {
         }
       },
       (error) => {
-        alert("No se pudo obtener tu ubicación: " + error.message);
+        alert("Could not get your location: " + error.message);
       },
     );
   };
@@ -165,6 +165,10 @@ export const SettingsTips: React.FC = () => {
       tipBubbleShowGreeting: DEFAULT_SETTINGS.tipBubbleShowGreeting,
       tipBubbleShowProductivity: DEFAULT_SETTINGS.tipBubbleShowProductivity,
       tipBubbleShowWeather: DEFAULT_SETTINGS.tipBubbleShowWeather,
+      tipBubbleShowHealth: DEFAULT_SETTINGS.tipBubbleShowHealth,
+      tipBubbleShowDidYouKnow: DEFAULT_SETTINGS.tipBubbleShowDidYouKnow,
+      tipBubbleShowAI: DEFAULT_SETTINGS.tipBubbleShowAI,
+      tipAICategories: DEFAULT_SETTINGS.tipAICategories,
       tipBubbleTimeFormat: DEFAULT_SETTINGS.tipBubbleTimeFormat,
       weatherLocationName: DEFAULT_SETTINGS.weatherLocationName,
       weatherLatitude: DEFAULT_SETTINGS.weatherLatitude,
@@ -182,10 +186,10 @@ export const SettingsTips: React.FC = () => {
   return (
     <div>
       <fieldset>
-        <legend>Burbuja de Tips</legend>
+        <legend>Tip Bubble</legend>
         <Checkbox
           id="tipBubbleEnabled"
-          label="Mostrar tips del asistente"
+          label="Show assistant tips"
           checked={settings.tipBubbleEnabled}
           onChange={(checked) => {
             clippyApi.setState("settings.tipBubbleEnabled", checked);
@@ -193,7 +197,7 @@ export const SettingsTips: React.FC = () => {
         />
         <div className="field-row" style={{ width: 300, marginTop: 10 }}>
           <label htmlFor="tipBubbleInterval" style={{ width: 120 }}>
-            Frecuencia:
+            Frequency:
           </label>
           <select
             id="tipBubbleInterval"
@@ -214,7 +218,7 @@ export const SettingsTips: React.FC = () => {
         </div>
         <div className="field-row" style={{ width: 300, marginTop: 10 }}>
           <label htmlFor="tipBubbleDuration" style={{ width: 120 }}>
-            Duración: {settings.tipBubbleDuration || 8}s
+            Duration: {settings.tipBubbleDuration || 8}s
           </label>
           <input
             type="range"
@@ -236,10 +240,10 @@ export const SettingsTips: React.FC = () => {
       </fieldset>
 
       <fieldset>
-        <legend>Tipos de Tips</legend>
+        <legend>Tip Types</legend>
         <Checkbox
           id="tipBubbleShowGreeting"
-          label="🌤️ Saludos según la hora del día"
+          label="🌤️ Greetings based on time of day"
           checked={settings.tipBubbleShowGreeting}
           disabled={!settings.tipBubbleEnabled}
           onChange={(checked) => {
@@ -248,7 +252,7 @@ export const SettingsTips: React.FC = () => {
         />
         <Checkbox
           id="tipBubbleShowTime"
-          label="🕐 Hora y fecha actual"
+          label="🕐 Current time and date"
           checked={settings.tipBubbleShowTime}
           disabled={!settings.tipBubbleEnabled}
           onChange={(checked) => {
@@ -257,7 +261,7 @@ export const SettingsTips: React.FC = () => {
         />
         <Checkbox
           id="tipBubbleShowSystem"
-          label="💻 Información del sistema (CPU, RAM, Disco)"
+          label="💻 System information (CPU, RAM, Disk)"
           checked={settings.tipBubbleShowSystem}
           disabled={!settings.tipBubbleEnabled}
           onChange={(checked) => {
@@ -266,7 +270,7 @@ export const SettingsTips: React.FC = () => {
         />
         <Checkbox
           id="tipBubbleShowShortcuts"
-          label="⌨️ Atajos de teclado"
+          label="⌨️ Keyboard shortcuts"
           checked={settings.tipBubbleShowShortcuts}
           disabled={!settings.tipBubbleEnabled}
           onChange={(checked) => {
@@ -275,7 +279,7 @@ export const SettingsTips: React.FC = () => {
         />
         <Checkbox
           id="tipBubbleShowProductivity"
-          label="💡 Consejos de productividad"
+          label="💡 Productivity tips"
           checked={settings.tipBubbleShowProductivity}
           disabled={!settings.tipBubbleEnabled}
           onChange={(checked) => {
@@ -284,24 +288,73 @@ export const SettingsTips: React.FC = () => {
         />
         <Checkbox
           id="tipBubbleShowWeather"
-          label="🌡️ Tiempo meteorológico actual"
+          label="🌡️ Current weather"
           checked={settings.tipBubbleShowWeather}
           disabled={!settings.tipBubbleEnabled}
           onChange={(checked) => {
             clippyApi.setState("settings.tipBubbleShowWeather", checked);
           }}
         />
+        {settings.useExternalApi && (
+          <>
+            <Checkbox
+              id="tipBubbleShowAI"
+              label="🤖 AI tips (external provider)"
+              checked={settings.tipBubbleShowAI}
+              disabled={!settings.tipBubbleEnabled}
+              onChange={(checked) => {
+                clippyApi.setState("settings.tipBubbleShowAI", checked);
+              }}
+            />
+            {settings.tipBubbleShowAI && (
+              <>
+                <div
+                  className="field-row"
+                  style={{ width: 280, marginTop: 10 }}>
+                  <label htmlFor="tipAICategories" style={{ width: 90 }}>
+                    Categories:
+                  </label>
+                  <input
+                    type="text"
+                    id="tipAICategories"
+                    placeholder="E.g. weather, horoscope, news"
+                    value={settings.tipAICategories}
+                    disabled={!settings.tipBubbleEnabled}
+                    onChange={(event) => {
+                      clippyApi.setState(
+                        "settings.tipAICategories",
+                        event.target.value,
+                      );
+                    }}
+                    style={{ flex: 1, minWidth: 0 }}
+                  />
+                </div>
+                {!settings.tipAICategories.trim() && (
+                  <div
+                    style={{
+                      color: "#c00",
+                      fontSize: 11,
+                      marginTop: 4,
+                      marginLeft: 90,
+                    }}>
+                    ⚠️ Required: add at least one category to enable AI tips
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
       </fieldset>
 
       <fieldset>
-        <legend>📍 Ubicación para el Tiempo</legend>
+        <legend>📍 Weather Location</legend>
         <div style={{ marginBottom: 8 }}>
-          <strong>Actual:</strong> {settings.weatherLocationName}
+          <strong>Current:</strong> {settings.weatherLocationName}
         </div>
         <div ref={dropdownRef} style={{ position: "relative", width: 280 }}>
           <input
             type="text"
-            placeholder="Buscar ciudad..."
+            placeholder="Search city..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             disabled={
@@ -354,15 +407,15 @@ export const SettingsTips: React.FC = () => {
           disabled={
             !settings.tipBubbleEnabled || !settings.tipBubbleShowWeather
           }>
-          📍 Usar mi ubicación actual
+          📍 Use my current location
         </button>
       </fieldset>
 
       <fieldset>
-        <legend>Formato de Hora</legend>
+        <legend>Time Format</legend>
         <div className="field-row" style={{ width: 300 }}>
           <label htmlFor="tipBubbleTimeFormat" style={{ width: 100 }}>
-            Formato:
+            Format:
           </label>
           <select
             id="tipBubbleTimeFormat"
@@ -384,7 +437,7 @@ export const SettingsTips: React.FC = () => {
       </fieldset>
 
       <button style={{ marginTop: 10 }} onClick={onReset}>
-        Restaurar valores por defecto
+        Restore default values
       </button>
     </div>
   );

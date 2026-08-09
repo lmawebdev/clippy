@@ -325,7 +325,25 @@ export function SpeechBubble({
       role="alert"
       aria-live="polite">
       <div className="speech-bubble">
-        <div className="speech-bubble-content">
+        <div
+          className={`speech-bubble-content ${
+            (mode === "tips" || mode === "custom") &&
+            currentTip &&
+            currentTip.content.length > 60
+              ? "marquee"
+              : ""
+          }`}
+          style={
+            (mode === "tips" || mode === "custom") &&
+            currentTip &&
+            currentTip.content.length > 60
+              ? ({
+                  "--marquee-duration": `${
+                    settings.tipBubbleDuration || 8
+                  }s`,
+                } as React.CSSProperties)
+              : undefined
+          }>
           {(mode === "tips" || mode === "custom") && currentTip && <p>{currentTip.content}</p>}
           {mode === "stats" && systemInfo && (
             <div

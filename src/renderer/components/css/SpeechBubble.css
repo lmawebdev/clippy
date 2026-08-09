@@ -45,6 +45,28 @@
   text-align: center;
 }
 
+/* Marquee effect: scrolls long text upward slowly (like movie credits)
+   Duration is synced with the bubble display time via --marquee-duration */
+.speech-bubble-content.marquee {
+  overflow: hidden;
+  max-height: 60px;
+  position: relative;
+}
+
+.speech-bubble-content.marquee p {
+  animation: marquee-scroll var(--marquee-duration, 8s) linear forwards;
+  white-space: normal;
+}
+
+@keyframes marquee-scroll {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-100%);
+  }
+}
+
 /* Speech bubble tail - pointing down toward Clippy */
 .speech-bubble::after {
   content: "";

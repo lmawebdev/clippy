@@ -31,6 +31,8 @@ export interface SettingsState {
   tipBubbleShowWeather: boolean;
   tipBubbleShowHealth: boolean;
   tipBubbleShowDidYouKnow: boolean;
+  tipBubbleShowAI: boolean;
+  tipAICategories: string;
   tipBubbleDuration: number; // seconds (5-38)
   tipBubbleTimeFormat: "12h" | "24h";
   // Weather location settings
@@ -131,6 +133,8 @@ export const DEFAULT_SETTINGS: SettingsState = {
   tipBubbleShowWeather: true,
   tipBubbleShowHealth: true,
   tipBubbleShowDidYouKnow: true,
+  tipBubbleShowAI: false,
+  tipAICategories: "",
   tipBubbleDuration: 8, // default 8 seconds
   tipBubbleTimeFormat: "24h",
   // Weather location defaults (Madrid, Spain)
